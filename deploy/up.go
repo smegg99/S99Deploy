@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/joho/godotenv"
 	"github.com/smegg99/s99logger"
 
@@ -87,26 +88,27 @@ func Up(name string) error {
 	return nil
 }
 
-// healthCheck polls url until it returns 200 or the deadline passes. At least
-// one attempt is always made.
+// healthCheck polls url until it returns 200 or timeout elapses. At least one
+// attempt is always made.
 func healthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 5 * time.Second}
-	deadline := time.Now().Add(timeout)
-	var lastErr error
-	for {
+	attempt := func() error {
 		resp, err := client.Get(url)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return nil
-			}
-			lastErr = fmt.Errorf("%s returned %d", url, resp.StatusCode)
-		} else {
-			lastErr = err
+		if err != nil {
+			return err
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("health check failed: %v", lastErr)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("%s returned %d", url, resp.StatusCode)
 		}
-		time.Sleep(500 * time.Millisecond)
+		return nil
 	}
+
+	policy := backoff.NewExponentialBackOff()
+	policy.InitialInterval = 500 * time.Millisecond
+	policy.MaxElapsedTime = timeout
+	if err := backoff.Retry(attempt, policy); err != nil {
+		return fmt.Errorf("health check failed: %w", err)
+	}
+	return nil
 }

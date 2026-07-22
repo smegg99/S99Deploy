@@ -1,0 +1,6 @@
+{
+	"name": "hello",
+	"build": ["go build -trimpath -o bin/hello ."],
+	"run": ["bin/hello"],
+	"check": { "port": 8080 }
+}

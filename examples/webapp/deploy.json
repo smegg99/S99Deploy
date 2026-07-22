@@ -1,0 +1,12 @@
+{
+	"name": "mysite",
+	"build": [
+		"cd web && pnpm install --frozen-lockfile",
+		"cd web && pnpm build",
+		"go build -trimpath -o bin/mysite ."
+	],
+	"run": ["bin/mysite"],
+	"env": { "CONFIG_PATH": "config.json" },
+	"require_env": ["SITE_URL"],
+	"check": { "port": 9245, "path": "/", "timeout_seconds": 30 }
+}

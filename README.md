@@ -11,8 +11,9 @@ manifest and the box carries one `s99deploy` binary. The systemd unit is
 generated from a single hardened template whose `ExecStart` is
 `s99deploy run`, so units are identical boilerplate across apps.
 
-Built with Go, [s99config](https://github.com/smegg99/s99config) (CUE-schema
-manifest validation), and [s99logger](https://github.com/smegg99/s99logger).
+Built with Go, [cobra](https://github.com/spf13/cobra),
+[s99config](https://github.com/smegg99/s99config) (CUE-schema manifest
+validation), and [s99logger](https://github.com/smegg99/s99logger).
 
 ## Prerequisites
 
@@ -39,29 +40,29 @@ schema on every load:
 
 ```json
 {
-	"name": "smeggtunersite",
-	"build": [
-		"cd web && pnpm install --frozen-lockfile",
-		"cd web && pnpm build",
-		"go build -trimpath -o bin/smeggtunersite ."
-	],
-	"run": ["bin/smeggtunersite"],
-	"env": { "CONFIG_PATH": "config.json" },
-	"require_env": ["SMEGGTUNER_SITE_URL"],
-	"check": { "port": 9245 }
+  "name": "smeggtunersite",
+  "build": [
+    "cd web && pnpm install --frozen-lockfile",
+    "cd web && pnpm build",
+    "go build -trimpath -o bin/smeggtunersite ."
+  ],
+  "run": ["bin/smeggtunersite"],
+  "env": { "CONFIG_PATH": "config.json" },
+  "require_env": ["SMEGGTUNER_SITE_URL"],
+  "check": { "port": 9245 }
 }
 ```
 
-| Field | Default | Description |
-|---|---|---|
-| `name` | required | Service name: the systemd unit, the system user, and `/opt/<name>`. Lowercase, digits, hyphens. |
-| `build` | `[]` | Shell commands run in order as the service user in the app dir. |
-| `run` | required | Argv exec'd by systemd. `argv[0]` with a path separator is resolved relative to the app dir; a bare name through `PATH`. |
-| `env` | `{}` | Extra environment for build and run (e.g. `CONFIG_PATH`). |
-| `require_env` | `[]` | Vars that must be non-empty in the build environment (usually from `.env`). |
-| `check.port` | required | Loopback port for the post-deploy health check. |
-| `check.path` | `/` | Health check path; must return 200. |
-| `check.timeout_seconds` | `10` | How long the health check polls before the deploy fails. |
+| Field                   | Default  | Description                                                                                                              |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `name`                  | required | Service name: the systemd unit, the system user, and `/opt/<name>`. Lowercase, digits, hyphens.                          |
+| `build`                 | `[]`     | Shell commands run in order as the service user in the app dir.                                                          |
+| `run`                   | required | Argv exec'd by systemd. `argv[0]` with a path separator is resolved relative to the app dir; a bare name through `PATH`. |
+| `env`                   | `{}`     | Extra environment for build and run (e.g. `CONFIG_PATH`).                                                                |
+| `require_env`           | `[]`     | Vars that must be non-empty in the build environment (usually from `.env`).                                              |
+| `check.port`            | required | Loopback port for the post-deploy health check.                                                                          |
+| `check.path`            | `/`      | Health check path; must return 200.                                                                                      |
+| `check.timeout_seconds` | `10`     | How long the health check polls before the deploy fails.                                                                 |
 
 ## Commands
 
@@ -89,6 +90,9 @@ systemd supervises the real process. Secrets reach it through the unit's
 `uninstall` asks you to type the name, then disables and removes the unit.
 The checkout, `.env`, and user stay unless `--purge` (which runs
 `userdel -r`).
+
+Ready-made manifests and a full lifecycle walkthrough live in
+[`examples/`](examples/).
 
 ## Deploying an app
 

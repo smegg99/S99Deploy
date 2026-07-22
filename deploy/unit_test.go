@@ -19,7 +19,7 @@ func TestRenderUnit(t *testing.T) {
 			t.Errorf("unit missing %q", want)
 		}
 	}
-	if strings.Contains(unit, "__") {
+	if strings.Contains(unit, "{{") || strings.Contains(unit, "<no value>") {
 		t.Errorf("unfilled placeholder in unit:\n%s", unit)
 	}
 }

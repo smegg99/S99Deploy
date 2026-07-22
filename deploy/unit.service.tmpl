@@ -1,18 +1,18 @@
 [Unit]
-Description=__NAME__ (managed by s99deploy)
+Description={{.Name}} (managed by s99deploy)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=__NAME__
-Group=__NAME__
+User={{.Name}}
+Group={{.Name}}
 
-WorkingDirectory=__ROOT__/app
-ExecStart=/usr/local/bin/s99deploy run __ROOT__
+WorkingDirectory={{.Root}}/app
+ExecStart=/usr/local/bin/s99deploy run {{.Root}}
 
 # Secrets live outside the checkout so a git operation can never touch them.
-EnvironmentFile=__ROOT__/.env
+EnvironmentFile={{.Root}}/.env
 
 Restart=on-failure
 RestartSec=5
@@ -32,7 +32,7 @@ MemoryDenyWriteExecute=true
 
 # Under ProtectSystem=strict systemd refuses to start if a ReadWritePaths entry
 # is missing. The whole root always exists, so a fresh clone still starts.
-ReadWritePaths=__ROOT__
+ReadWritePaths={{.Root}}
 
 [Install]
 WantedBy=multi-user.target
