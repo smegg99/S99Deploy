@@ -33,6 +33,13 @@ cd S99Deploy
 just install   # go build + sudo install to /usr/local/bin/s99deploy
 ```
 
+Or, with the [hosting site](#hosting-the-binary) running somewhere, bootstrap
+any VPS with one command:
+
+```sh
+curl -fsSL https://<your-host>/install.sh | sudo sh
+```
+
 ## The manifest
 
 Each app repo carries a `deploy.json` in its root, validated against a CUE
@@ -112,6 +119,39 @@ Status and logs:
 systemctl status smeggtunersite
 journalctl -u smeggtunersite -f
 ```
+
+## Hosting the binary
+
+`site/` is a small Gin API that makes the CLI curl-able:
+
+| Endpoint      | Serves                                                       |
+| ------------- | ------------------------------------------------------------ |
+| `/`           | Plain-text usage with copy-pasteable install commands.        |
+| `/install.sh` | Script that downloads the binary to `/usr/local/bin`.         |
+| `/s99deploy`  | The linux binary itself, built at deploy time from this repo. |
+
+The printed URLs follow the request host, so the site works on any domain
+behind a reverse proxy:
+
+```caddy
+get.example.com {
+    reverse_proxy 127.0.0.1:9250
+}
+```
+
+Config lives in [`config.json`](config.json) (`gin_mode`, `listen_addr`,
+`bin_path`, `trusted_proxies`), validated by the CUE schema in
+[`site/schema.cue`](site/schema.cue).
+
+The repo carries its own [`deploy.json`](deploy.json), so the site is
+deployed with the tool it hosts:
+
+```sh
+sudo s99deploy install git@github.com:smegg99/S99Deploy.git
+sudo s99deploy up s99deploy-site
+```
+
+Run it locally with `just site`.
 
 ## Development
 

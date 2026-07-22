@@ -4,10 +4,15 @@ app_name := "s99deploy"
 default:
     @just --list
 
-# Build the CLI binary.
+# Build the CLI and site binaries.
 build:
     mkdir -p bin
     go build -trimpath -o bin/{{app_name}} .
+    go build -trimpath -o bin/{{app_name}}-site ./site
+
+# Run the hosting site locally.
+site: build
+    CONFIG_PATH=config.json ./bin/{{app_name}}-site
 
 # Install the binary system-wide (run this on the VPS).
 install: build
@@ -23,7 +28,7 @@ vet:
 
 # Format Go source files.
 fmt:
-    gofmt -s -w main.go manifest deploy
+    gofmt -s -w main.go manifest deploy site
 
 # Regenerate Go manifest types from the CUE schema.
 gen-types:

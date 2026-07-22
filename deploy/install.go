@@ -113,18 +113,16 @@ func lookupIDs(name string) (int, int, error) {
 	return uid, gid, nil
 }
 
-// seedEnv copies .env.example to /opt/<name>/.env on first install and keeps
-// the secrets file locked down either way.
+// seedEnv creates /opt/<name>/.env on first install -- from .env.example when
+// the app has one, empty otherwise, since both `up` and the unit's
+// EnvironmentFile require the file to exist. Locked down either way.
 func seedEnv(root, appDir string, uid, gid int) error {
 	envPath := filepath.Join(root, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return lockDownEnv(envPath, uid, gid)
 	}
 	example, err := os.ReadFile(filepath.Join(appDir, ".env.example"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	if err := os.WriteFile(envPath, example, 0o600); err != nil {

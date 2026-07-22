@@ -1,0 +1,6 @@
+{
+	"gin_mode": "release",
+	"listen_addr": "127.0.0.1:9250",
+	"bin_path": "./bin/s99deploy",
+	"trusted_proxies": ["127.0.0.1", "::1"]
+}
