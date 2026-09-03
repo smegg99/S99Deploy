@@ -9,7 +9,7 @@ User={{.Name}}
 Group={{.Name}}
 
 WorkingDirectory={{.Root}}/app
-ExecStart=/usr/local/bin/s99deploy run {{.Root}}
+ExecStart={{.SelfPath}} run {{.Root}}
 
 # Secrets live outside the checkout so a git operation can never touch them.
 EnvironmentFile={{.Root}}/.env

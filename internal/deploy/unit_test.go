@@ -8,7 +8,7 @@ import (
 )
 
 func TestRenderUnit(t *testing.T) {
-	unit := RenderUnit("myapp", "/opt/myapp")
+	unit := RenderUnit(UnitParams{Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/s99deploy"})
 	for _, want := range []string{
 		"ExecStart=/usr/local/bin/s99deploy run /opt/myapp",
 		"User=myapp",

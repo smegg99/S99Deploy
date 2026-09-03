@@ -13,10 +13,13 @@ var unitSource string
 
 var unitTemplate = template.Must(template.New("unit").Parse(unitSource))
 
-// RenderUnit fills the embedded unit template. The service user is always named after the app, so name covers both.
-func RenderUnit(name, root string) string {
+// UnitParams is what the unit template needs.
+type UnitParams struct{ Name, Root, SelfPath string }
+
+// RenderUnit fills the embedded unit template.
+func RenderUnit(u UnitParams) string {
 	var out strings.Builder
 	// The template is embedded and parsed at init, so execution cannot fail.
-	_ = unitTemplate.Execute(&out, struct{ Name, Root string }{name, root})
+	_ = unitTemplate.Execute(&out, u)
 	return out.String()
 }

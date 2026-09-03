@@ -1,59 +1,66 @@
 // internal/deploy/exec.go
 
-// Thin wrappers around the external commands the deploy flow shells out to. Stdio is inherited so git and build output land in the terminal untouched.
 package deploy
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-func run(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+// liveRunner starts real processes on this process's own descriptors.
+type liveRunner struct{ out, errOut io.Writer }
+
+func (r *liveRunner) Run(ctx context.Context, env []string, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = env
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout, cmd.Stderr = r.out, r.errOut
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
 	return nil
 }
 
-// runAsUser runs a shell command as user in dir. A login shell so the service user's profile PATH (corepack shims and the like) applies, matching the old per-app deploy scripts. A nil env inherits the caller's.
-func runAsUser(user, dir, command string, env []string) error {
-	cmd := exec.Command("runuser", "-u", user, "--", "bash", "-lc", command)
-	cmd.Dir = dir
+func (r *liveRunner) Output(ctx context.Context, env []string, name string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Env = env
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("as %s: %s: %w", user, command, err)
-	}
-	return nil
-}
-
-func outputAsUser(user, dir, command string) (string, error) {
-	cmd := exec.Command("runuser", "-u", user, "--", "bash", "-lc", command)
-	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("as %s: %s: %w", user, command, err)
+		return "", fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
-func requireRoot() error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("must run as root: sudo s99deploy ...")
+func (r *liveRunner) RunAsUser(ctx context.Context, a AsUser, command string, env []string) error {
+	cmd := exec.CommandContext(ctx, "runuser", "-u", a.Name, "--", "bash", "-lc", command)
+	cmd.Dir = a.Dir
+	cmd.Env = env
+	cmd.Stdout, cmd.Stderr = r.out, r.errOut
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("as %s: %s: %w", a.Name, command, err)
 	}
 	return nil
 }
 
-// resolveArgv0 turns the manifest run argv[0] into an executable path: absolute stays, a path with a separator is relative to the app dir, a bare name goes through PATH.
+func (r *liveRunner) OutputAsUser(ctx context.Context, a AsUser, command string, env []string) (string, error) {
+	cmd := exec.CommandContext(ctx, "runuser", "-u", a.Name, "--", "bash", "-lc", command)
+	cmd.Dir = a.Dir
+	cmd.Env = env
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("as %s: %s: %w", a.Name, command, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// resolveArgv0 turns the manifest run argv[0] into an executable path.
 func resolveArgv0(appDir, argv0 string) (string, error) {
+	// Absolute stays, a path with a separator is relative to the app dir, and a bare name goes through PATH.
 	if filepath.IsAbs(argv0) {
 		return argv0, nil
 	}

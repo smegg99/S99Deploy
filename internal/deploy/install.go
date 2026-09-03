@@ -3,120 +3,119 @@
 package deploy
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"os"
-	"os/user"
 	"path/filepath"
-	"strconv"
 
 	"github.com/smegg99/s99logger"
 
 	"github.com/smegg99/s99deploy/internal/manifest"
 )
 
-// Install performs one-time app setup: clone, service user, /opt layout, systemd unit. Safe to rerun; every step skips what already exists.
-func Install(gitURL string) error {
-	if err := requireRoot(); err != nil {
-		return err
+// Installed is what one install produced, for the caller to print.
+type Installed struct{ Name, Root string }
+
+// Install is the one-time app setup: clone, account, /opt layout, unit.
+func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error) {
+	// Safe to rerun: every step below skips what already exists.
+	if err := d.requireRoot(); err != nil {
+		return Installed{}, err
 	}
-	if err := os.MkdirAll("/opt", 0o755); err != nil {
-		return err
+	if err := os.MkdirAll(d.cfg.OptDir, 0o755); err != nil {
+		return Installed{}, err
 	}
-	// The temp clone lives under /opt so it can be renamed into place; /tmp is
-	// often tmpfs, where a cross-device rename fails.
-	tmp, err := os.MkdirTemp("/opt", ".s99deploy-install-")
+
+	// The temp clone lives under OptDir so it can be renamed into place; /tmp is often tmpfs, where a cross-device rename fails.
+	tmp, err := os.MkdirTemp(d.cfg.OptDir, ".s99deploy-install-")
 	if err != nil {
-		return err
+		return Installed{}, err
 	}
 	defer os.RemoveAll(tmp)
 
 	checkout := filepath.Join(tmp, "app")
-	s99logger.Info(s99logger.NewEvent("cloning", s99logger.String("repo", gitURL)))
-	if err := run("git", "clone", gitURL, checkout); err != nil {
-		return err
+	end := d.cfg.Progress.Begin(StepClone, gitURL)
+	err = d.cfg.Runner.Run(ctx, nil, "git", "clone", gitURL, checkout)
+	end(err)
+	if err != nil {
+		return Installed{}, err
 	}
+	d.cfg.Log.Info(s99logger.NewEvent(EventCloning, s99logger.String("repo", gitURL)))
+
 	m, err := manifest.Load(filepath.Join(checkout, "deploy.json"))
 	if err != nil {
-		return err
+		return Installed{}, err
 	}
-	root := filepath.Join("/opt", m.Name)
+	root := d.root(m.Name)
 	appDir := filepath.Join(root, "app")
 
-	if err := ensureUser(m.Name, root); err != nil {
-		return err
-	}
-	uid, gid, err := lookupIDs(m.Name)
+	account, err := d.ensureAccount(ctx, m.Name, root)
 	if err != nil {
-		return err
+		return Installed{}, err
 	}
-	if err := os.Chown(root, uid, gid); err != nil {
-		return err
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return Installed{}, err
+	}
+	if err := os.Chown(root, int(account.UID), int(account.GID)); err != nil {
+		return Installed{}, err
 	}
 	if err := os.Chmod(root, 0o755); err != nil {
-		return err
+		return Installed{}, err
 	}
 
 	if _, err := os.Stat(filepath.Join(appDir, ".git")); err == nil {
-		s99logger.Info(s99logger.NewEvent("checkout_present", s99logger.String("path", appDir)))
+		d.cfg.Log.Info(s99logger.NewEvent(EventCheckoutPresent, s99logger.String("path", appDir)))
 	} else {
 		if err := os.Rename(checkout, appDir); err != nil {
-			return err
+			return Installed{}, err
 		}
-		if err := run("chown", "-R", m.Name+":"+m.Name, appDir); err != nil {
-			return err
+		if err := d.cfg.Runner.Run(ctx, nil, "chown", "-R", m.Name+":"+m.Name, appDir); err != nil {
+			return Installed{}, err
 		}
 	}
 
-	if err := seedEnv(root, appDir, uid, gid); err != nil {
-		return err
+	if err := d.seedEnv(root, appDir, int(account.UID), int(account.GID)); err != nil {
+		return Installed{}, err
 	}
 
-	unitPath := filepath.Join("/etc/systemd/system", m.Name+".service")
-	if err := os.WriteFile(unitPath, []byte(RenderUnit(m.Name, root)), 0o644); err != nil {
-		return err
+	unit := RenderUnit(UnitParams{Name: m.Name, Root: root, SelfPath: d.cfg.SelfPath})
+	if err := os.WriteFile(d.unitPath(m.Name), []byte(unit), 0o644); err != nil {
+		return Installed{}, err
 	}
-	if err := run("systemctl", "daemon-reload"); err != nil {
-		return err
+	if err := d.cfg.Units.Reload(ctx); err != nil {
+		return Installed{}, err
 	}
-	if err := run("systemctl", "enable", m.Name); err != nil {
-		return err
+	if err := d.cfg.Units.Enable(ctx, m.Name); err != nil {
+		return Installed{}, err
 	}
 
-	s99logger.Info(s99logger.NewEvent("installed", s99logger.String("app", m.Name)))
-	fmt.Printf("\nNext:\n  1. fill in %s/.env\n  2. sudo s99deploy up %s\n", root, m.Name)
-	return nil
+	d.cfg.Log.Info(s99logger.NewEvent(EventInstalled, s99logger.String("app", m.Name)))
+	return Installed{Name: m.Name, Root: root}, nil
 }
 
-// ensureUser creates the service user with no sudo and no password: a web-facing process should not be able to escalate if compromised.
-func ensureUser(name, home string) error {
-	if _, err := user.Lookup(name); err == nil {
-		return nil
+// ensureAccount creates the service account when it is missing.
+func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Account, error) {
+	account, err := d.cfg.Accounts.Lookup(name)
+	if err == nil {
+		return account, nil
 	}
-	return run("useradd", "--system", "--create-home", "--home-dir", home, "--shell", "/bin/bash", name)
+	if !errors.Is(err, ErrNoAccount) {
+		return Account{}, err
+	}
+	if err := d.cfg.Accounts.Create(ctx, name, home); err != nil {
+		return Account{}, err
+	}
+	return d.cfg.Accounts.Lookup(name)
 }
 
-func lookupIDs(name string) (int, int, error) {
-	u, err := user.Lookup(name)
-	if err != nil {
-		return 0, 0, err
-	}
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		return 0, 0, err
-	}
-	gid, err := strconv.Atoi(u.Gid)
-	if err != nil {
-		return 0, 0, err
-	}
-	return uid, gid, nil
-}
-
-// seedEnv creates /opt/<name>/.env on first install -- from .env.example when the app has one, empty otherwise, since both `up` and the unit's EnvironmentFile require the file to exist. Locked down either way.
-func seedEnv(root, appDir string, uid, gid int) error {
+// seedEnv creates /opt/<name>/.env on first install.
+func (d *Deployer) seedEnv(root, appDir string, uid, gid int) error {
+	// From .env.example when the app ships one, because both up and the unit's EnvironmentFile need the file to exist.
 	envPath := filepath.Join(root, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return lockDownEnv(envPath, uid, gid)
 	}
+
 	example, err := os.ReadFile(filepath.Join(appDir, ".env.example"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -124,7 +123,7 @@ func seedEnv(root, appDir string, uid, gid int) error {
 	if err := os.WriteFile(envPath, example, 0o600); err != nil {
 		return err
 	}
-	s99logger.Info(s99logger.NewEvent("created_env", s99logger.String("path", envPath)))
+	d.cfg.Log.Info(s99logger.NewEvent(EventCreatedEnv, s99logger.String("path", envPath)))
 	return lockDownEnv(envPath, uid, gid)
 }
 

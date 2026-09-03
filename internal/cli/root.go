@@ -4,7 +4,11 @@
 package cli
 
 import (
+	"bufio"
+	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/smegg99/s99logger"
 	"github.com/spf13/cobra"
@@ -14,21 +18,22 @@ import (
 )
 
 // Main runs the command tree and returns the process exit code.
-func Main() int {
-	s99logger.SetDefault(s99logger.New(
-		s99logger.NewConsoleSink(os.Stderr),
-		s99logger.Options{Service: "s99deploy"},
-	))
+func Main(ctx context.Context) int {
+	// The domain logs through Config.Log, which New defaults to a discard sink, so the CLI has to hand it the real one or every event disappears.
+	log := s99logger.New(s99logger.NewConsoleSink(os.Stderr), s99logger.Options{Service: "s99deploy"})
+	s99logger.SetDefault(log)
+	cfg := deploy.LiveConfig()
+	cfg.Log = log
 
-	if err := NewRootCmd().Execute(); err != nil {
-		s99logger.Error(s99logger.NewEvent("failed", s99logger.Err(err)))
+	if err := NewRootCmd(deploy.New(cfg)).ExecuteContext(ctx); err != nil {
+		log.Error(s99logger.NewEvent("failed", s99logger.Err(err)))
 		return 1
 	}
 	return 0
 }
 
 // NewRootCmd builds the command tree.
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(d *deploy.Deployer) *cobra.Command {
 	root := &cobra.Command{
 		Use:     "s99deploy",
 		Version: s99deploy.Version(),
@@ -48,7 +53,12 @@ func NewRootCmd() *cobra.Command {
 		Example: "  sudo s99deploy install git@github.com:smegg99/MyApp.git",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deploy.Install(args[0])
+			installed, err := d.Install(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "\nNext:\n  1. fill in %s/.env\n  2. sudo s99deploy up %s\n", installed.Root, installed.Name)
+			return nil
 		},
 	})
 
@@ -58,7 +68,7 @@ func NewRootCmd() *cobra.Command {
 		Example: "  sudo s99deploy up myapp",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deploy.Up(args[0])
+			return d.Up(cmd.Context(), args[0], 0)
 		},
 	})
 
@@ -68,7 +78,7 @@ func NewRootCmd() *cobra.Command {
 		Example: "  /usr/local/bin/s99deploy run /opt/myapp  (what the unit's ExecStart calls)",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deploy.Run(args[0])
+			return d.Run(cmd.Context(), args[0])
 		},
 	})
 
@@ -83,7 +93,15 @@ func NewRootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return deploy.Uninstall(args[0], purge)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Type %s to confirm: ", args[0])
+			answer, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(answer) != args[0] {
+				return fmt.Errorf("confirmation did not match")
+			}
+			return d.Uninstall(cmd.Context(), args[0], purge)
 		},
 	}
 	uninstall.Flags().Bool("purge", false, "also remove /opt/<name> and the service user")

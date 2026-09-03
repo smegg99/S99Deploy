@@ -4,9 +4,16 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/smegg99/s99deploy/internal/cli"
 )
 
-func main() { os.Exit(cli.Main()) }
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	os.Exit(cli.Main(ctx))
+}
