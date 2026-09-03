@@ -1,4 +1,4 @@
-// deploy/env.go
+// internal/deploy/env.go
 
 package deploy
 
@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// BuildEnv merges base "K=V" pairs (usually os.Environ) with overlays in
-// order; later values win.
+// BuildEnv merges base "K=V" pairs (usually os.Environ) with overlays in order; later values win.
 func BuildEnv(base []string, overlays ...map[string]string) map[string]string {
 	env := make(map[string]string, len(base))
 	for _, kv := range base {
@@ -34,8 +33,7 @@ func PrependPath(env map[string]string, dir string) {
 	env["PATH"] = dir
 }
 
-// CheckRequired reports every required var that is unset or empty, so one
-// failed deploy surfaces the whole list instead of one name per attempt.
+// CheckRequired reports every required var that is unset or empty, so one failed deploy surfaces the whole list instead of one name per attempt.
 func CheckRequired(env map[string]string, required []string) error {
 	var missing []string
 	for _, name := range required {

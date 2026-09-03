@@ -1,9 +1,7 @@
-// main.go
+// internal/cli/root.go
 
-// s99deploy: one deploy CLI for every same-shape app on the box. Each app
-// declares itself in a deploy.json manifest; s99deploy owns install, deploy,
-// run, and uninstall around that manifest.
-package main
+// Package cli is the s99deploy command tree.
+package cli
 
 import (
 	"os"
@@ -11,22 +9,25 @@ import (
 	"github.com/smegg99/s99logger"
 	"github.com/spf13/cobra"
 
-	"github.com/smegg99/s99deploy/deploy"
+	"github.com/smegg99/s99deploy/internal/deploy"
 )
 
-func main() {
+// Main runs the command tree and returns the process exit code.
+func Main() int {
 	s99logger.SetDefault(s99logger.New(
 		s99logger.NewConsoleSink(os.Stderr),
 		s99logger.Options{Service: "s99deploy"},
 	))
 
-	if err := rootCmd().Execute(); err != nil {
+	if err := NewRootCmd().Execute(); err != nil {
 		s99logger.Error(s99logger.NewEvent("failed", s99logger.Err(err)))
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
-func rootCmd() *cobra.Command {
+// NewRootCmd builds the command tree.
+func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "s99deploy",
 		Short: "Deploy manifest-carrying apps to /opt under systemd",

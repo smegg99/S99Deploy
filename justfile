@@ -34,7 +34,7 @@ test:
 # Build both binaries into bin/.
 build:
     mkdir -p bin
-    go build -trimpath -o bin/{{app_name}} .
+    go build -trimpath -o bin/{{app_name}} ./cmd/s99deploy
     go build -trimpath -o bin/{{app_name}}-site ./site
 
 # Run the hosting site locally.
@@ -49,7 +49,7 @@ install: build
 gen-types:
     #!/usr/bin/env bash
     set -euo pipefail
-    for dir in manifest site; do
+    for dir in internal/manifest site; do
         cd "{{justfile_directory()}}/$dir"
         go tool cue exp gengotypes .
         gofmt -s -w cue_types_*_gen.go
@@ -65,7 +65,7 @@ check-cue:
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
     go build -o "$tmp/cue" cuelang.org/go/cmd/cue
-    for dir in manifest site; do
+    for dir in internal/manifest site; do
         name="$(basename "$dir")"
         mkdir -p "$tmp/$name"
         cp "$root/$dir/schema.cue" "$tmp/$name/"
@@ -83,7 +83,7 @@ check-manifests:
     root="{{justfile_directory()}}"
     shopt -s nullglob
     for file in "$root/deploy.json" "$root"/examples/*/deploy.json; do
-        go tool cue vet -d '#Manifest' "$root/manifest/schema.cue" "$file"
+        go tool cue vet -d '#Manifest' "$root/internal/manifest/schema.cue" "$file"
         echo "ok $(realpath --relative-to="$root" "$file")"
     done
 

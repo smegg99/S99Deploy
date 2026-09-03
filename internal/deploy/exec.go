@@ -1,7 +1,6 @@
-// deploy/exec.go
+// internal/deploy/exec.go
 
-// Thin wrappers around the external commands the deploy flow shells out to.
-// Stdio is inherited so git and build output land in the terminal untouched.
+// Thin wrappers around the external commands the deploy flow shells out to. Stdio is inherited so git and build output land in the terminal untouched.
 package deploy
 
 import (
@@ -23,9 +22,7 @@ func run(name string, args ...string) error {
 	return nil
 }
 
-// runAsUser runs a shell command as user in dir. A login shell so the service
-// user's profile PATH (corepack shims and the like) applies, matching the old
-// per-app deploy scripts. A nil env inherits the caller's.
+// runAsUser runs a shell command as user in dir. A login shell so the service user's profile PATH (corepack shims and the like) applies, matching the old per-app deploy scripts. A nil env inherits the caller's.
 func runAsUser(user, dir, command string, env []string) error {
 	cmd := exec.Command("runuser", "-u", user, "--", "bash", "-lc", command)
 	cmd.Dir = dir
@@ -55,9 +52,7 @@ func requireRoot() error {
 	return nil
 }
 
-// resolveArgv0 turns the manifest run argv[0] into an executable path:
-// absolute stays, a path with a separator is relative to the app dir, a bare
-// name goes through PATH.
+// resolveArgv0 turns the manifest run argv[0] into an executable path: absolute stays, a path with a separator is relative to the app dir, a bare name goes through PATH.
 func resolveArgv0(appDir, argv0 string) (string, error) {
 	if filepath.IsAbs(argv0) {
 		return argv0, nil

@@ -1,4 +1,4 @@
-// deploy/up.go
+// internal/deploy/up.go
 
 package deploy
 
@@ -13,13 +13,12 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/smegg99/s99logger"
 
-	"github.com/smegg99/s99deploy/manifest"
+	"github.com/smegg99/s99deploy/internal/manifest"
 )
 
 const goBinDir = "/usr/local/go/bin"
 
-// Up deploys /opt/<name>: pull, build as the service user, restart, health
-// check. Any failure aborts with the service journal as the next stop.
+// Up deploys /opt/<name>: pull, build as the service user, restart, health check. Any failure aborts with the service journal as the next stop.
 func Up(name string) error {
 	if err := requireRoot(); err != nil {
 		return err
@@ -88,8 +87,7 @@ func Up(name string) error {
 	return nil
 }
 
-// healthCheck polls url until it returns 200 or timeout elapses. At least one
-// attempt is always made.
+// healthCheck polls url until it returns 200 or timeout elapses. At least one attempt is always made.
 func healthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 5 * time.Second}
 	attempt := func() error {

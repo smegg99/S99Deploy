@@ -1,7 +1,6 @@
-// manifest/manifest.go
+// internal/manifest/manifest.go
 
-// Package manifest loads and validates deploy.json, the per-app deploy
-// definition each app repo carries in its root.
+// Package manifest loads and validates deploy.json, the per-app deploy definition each app repo carries in its root.
 package manifest
 
 import (

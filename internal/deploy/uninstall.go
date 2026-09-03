@@ -1,4 +1,4 @@
-// deploy/uninstall.go
+// internal/deploy/uninstall.go
 
 package deploy
 
@@ -11,8 +11,7 @@ import (
 	"github.com/smegg99/s99logger"
 )
 
-// Uninstall removes the unit after confirmation. The checkout, .env, and
-// service user survive unless purge is set.
+// Uninstall removes the unit after confirmation. The checkout, .env, and service user survive unless purge is set.
 func Uninstall(name string, purge bool) error {
 	if err := requireRoot(); err != nil {
 		return err

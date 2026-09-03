@@ -1,3 +1,5 @@
+// internal/manifest/manifest_test.go
+
 package manifest
 
 import (

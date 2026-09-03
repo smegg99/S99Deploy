@@ -1,4 +1,4 @@
-// deploy/unit.go
+// internal/deploy/unit.go
 
 package deploy
 
@@ -13,8 +13,7 @@ var unitSource string
 
 var unitTemplate = template.Must(template.New("unit").Parse(unitSource))
 
-// RenderUnit fills the embedded unit template. The service user is always
-// named after the app, so name covers both.
+// RenderUnit fills the embedded unit template. The service user is always named after the app, so name covers both.
 func RenderUnit(name, root string) string {
 	var out strings.Builder
 	// The template is embedded and parsed at init, so execution cannot fail.

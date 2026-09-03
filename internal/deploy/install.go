@@ -1,4 +1,4 @@
-// deploy/install.go
+// internal/deploy/install.go
 
 package deploy
 
@@ -11,11 +11,10 @@ import (
 
 	"github.com/smegg99/s99logger"
 
-	"github.com/smegg99/s99deploy/manifest"
+	"github.com/smegg99/s99deploy/internal/manifest"
 )
 
-// Install performs one-time app setup: clone, service user, /opt layout,
-// systemd unit. Safe to rerun; every step skips what already exists.
+// Install performs one-time app setup: clone, service user, /opt layout, systemd unit. Safe to rerun; every step skips what already exists.
 func Install(gitURL string) error {
 	if err := requireRoot(); err != nil {
 		return err
@@ -88,8 +87,7 @@ func Install(gitURL string) error {
 	return nil
 }
 
-// ensureUser creates the service user with no sudo and no password: a
-// web-facing process should not be able to escalate if compromised.
+// ensureUser creates the service user with no sudo and no password: a web-facing process should not be able to escalate if compromised.
 func ensureUser(name, home string) error {
 	if _, err := user.Lookup(name); err == nil {
 		return nil
@@ -113,9 +111,7 @@ func lookupIDs(name string) (int, int, error) {
 	return uid, gid, nil
 }
 
-// seedEnv creates /opt/<name>/.env on first install -- from .env.example when
-// the app has one, empty otherwise, since both `up` and the unit's
-// EnvironmentFile require the file to exist. Locked down either way.
+// seedEnv creates /opt/<name>/.env on first install -- from .env.example when the app has one, empty otherwise, since both `up` and the unit's EnvironmentFile require the file to exist. Locked down either way.
 func seedEnv(root, appDir string, uid, gid int) error {
 	envPath := filepath.Join(root, ".env")
 	if _, err := os.Stat(envPath); err == nil {

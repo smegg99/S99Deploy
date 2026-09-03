@@ -1,4 +1,4 @@
-// deploy/run.go
+// internal/deploy/run.go
 
 package deploy
 
@@ -7,12 +7,10 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/smegg99/s99deploy/manifest"
+	"github.com/smegg99/s99deploy/internal/manifest"
 )
 
-// Run is the generic systemd ExecStart: load the manifest, lay its env over
-// what systemd provided (EnvironmentFile included), and exec the app so
-// systemd supervises the real binary, not a wrapper.
+// Run is the generic systemd ExecStart: load the manifest, lay its env over what systemd provided (EnvironmentFile included), and exec the app so systemd supervises the real binary, not a wrapper.
 func Run(root string) error {
 	appDir := filepath.Join(root, "app")
 	m, err := manifest.Load(filepath.Join(appDir, "deploy.json"))

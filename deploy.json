@@ -1,7 +1,7 @@
 {
 	"name": "s99deploy-site",
 	"build": [
-		"go build -trimpath -o bin/s99deploy .",
+		"go build -trimpath -o bin/s99deploy ./cmd/s99deploy",
 		"go build -trimpath -o bin/s99deploy-site ./site"
 	],
 	"run": ["bin/s99deploy-site"],
