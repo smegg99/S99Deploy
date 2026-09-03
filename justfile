@@ -35,7 +35,7 @@ test:
 build:
     mkdir -p bin
     go build -trimpath -o bin/{{app_name}} ./cmd/s99deploy
-    go build -trimpath -o bin/{{app_name}}-site ./site
+    go build -trimpath -o bin/{{app_name}}-site ./cmd/s99deploy-site
 
 # Run the hosting site locally.
 site: build
@@ -49,7 +49,7 @@ install: build
 gen-types:
     #!/usr/bin/env bash
     set -euo pipefail
-    for dir in internal/manifest site; do
+    for dir in internal/manifest internal/site; do
         cd "{{justfile_directory()}}/$dir"
         go tool cue exp gengotypes .
         gofmt -s -w cue_types_*_gen.go
@@ -65,7 +65,7 @@ check-cue:
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
     go build -o "$tmp/cue" cuelang.org/go/cmd/cue
-    for dir in internal/manifest site; do
+    for dir in internal/manifest internal/site; do
         name="$(basename "$dir")"
         mkdir -p "$tmp/$name"
         cp "$root/$dir/schema.cue" "$tmp/$name/"

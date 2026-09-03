@@ -1,6 +1,6 @@
-// site/routes.go
+// internal/site/routes.go
 
-package main
+package site
 
 import (
 	"fmt"
@@ -30,9 +30,8 @@ chmod 0755 /usr/local/bin/s99deploy
 echo "installed /usr/local/bin/s99deploy"
 `
 
-// buildRouter wires the three endpoints: usage text, the install script, and
-// the binary itself.
-func buildRouter(cfg *Config) (*gin.Engine, error) {
+// BuildRouter serves usage text, the install script, and the binary.
+func BuildRouter(cfg *Config) (*gin.Engine, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
@@ -52,9 +51,7 @@ func buildRouter(cfg *Config) (*gin.Engine, error) {
 	return router, nil
 }
 
-// baseURL reconstructs the public URL for the text endpoints so the printed
-// commands point back at whatever host served them. X-Forwarded-Proto is only
-// honored from trusted proxies (gin blanks untrusted forwarded headers).
+// baseURL reconstructs the public URL for the text endpoints.
 func baseURL(c *gin.Context) string {
 	scheme := c.GetHeader("X-Forwarded-Proto")
 	if scheme == "" {

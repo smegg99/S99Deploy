@@ -1,4 +1,6 @@
-package main
+// internal/site/routes_test.go
+
+package site
 
 import (
 	"net/http"
@@ -14,7 +16,7 @@ import (
 func testRouter(t *testing.T, binPath string) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	router, err := buildRouter(&Config{
+	router, err := BuildRouter(&Config{
 		BinPath:        binPath,
 		TrustedProxies: []string{"127.0.0.1", "::1"},
 	})

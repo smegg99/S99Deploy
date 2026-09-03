@@ -1,4 +1,4 @@
-package main
+package site
 
 // Config for the little site that hosts the s99deploy binary for curl.
 #Config: {

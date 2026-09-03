@@ -1,8 +1,6 @@
-// site/main.go
+// cmd/s99deploy-site/main.go
 
-// The curl-able home of the s99deploy binary. Serves usage text at /, an
-// install script at /install.sh, and the binary itself at /s99deploy, so any
-// VPS can bootstrap with one command.
+// s99deploy-site serves the s99deploy binary, its checksum and its install script.
 package main
 
 import (
@@ -10,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/smegg99/s99logger"
+
+	"github.com/smegg99/s99deploy/internal/site"
 )
 
 func main() {
@@ -18,13 +18,17 @@ func main() {
 		s99logger.Options{Service: "s99deploy-site"},
 	))
 
-	cfg, err := loadConfig()
+	path := os.Getenv("CONFIG_PATH")
+	if path == "" {
+		path = "config.json"
+	}
+	cfg, err := site.LoadConfig(path)
 	if err != nil {
 		s99logger.Fatal(s99logger.NewEvent("config_failed", s99logger.Err(err)))
 	}
 	gin.SetMode(cfg.GinMode)
 
-	router, err := buildRouter(cfg)
+	router, err := site.BuildRouter(cfg)
 	if err != nil {
 		s99logger.Fatal(s99logger.NewEvent("router_failed", s99logger.Err(err)))
 	}

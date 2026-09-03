@@ -1,11 +1,10 @@
-// site/config.go
+// internal/site/config.go
 
-package main
+package site
 
 import (
 	_ "embed"
 	"fmt"
-	"os"
 
 	"github.com/smegg99/s99config"
 )
@@ -13,13 +12,8 @@ import (
 //go:embed schema.cue
 var schema []byte
 
-// loadConfig validates and decodes the site config from CONFIG_PATH, falling
-// back to config.json in the working directory.
-func loadConfig() (*Config, error) {
-	path := os.Getenv("CONFIG_PATH")
-	if path == "" {
-		path = "config.json"
-	}
+// LoadConfig validates and decodes the site config at path.
+func LoadConfig(path string) (*Config, error) {
 	loader, err := s99config.New(schema)
 	if err != nil {
 		return nil, fmt.Errorf("compile config schema: %w", err)
