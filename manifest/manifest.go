@@ -11,8 +11,6 @@ import (
 	"github.com/smegg99/s99config"
 )
 
-//go:generate bash ../scripts/gen-types.sh
-
 //go:embed schema.cue
 var schema []byte
 
