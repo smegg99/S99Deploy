@@ -9,6 +9,7 @@ import (
 	"github.com/smegg99/s99logger"
 	"github.com/spf13/cobra"
 
+	"github.com/smegg99/s99deploy"
 	"github.com/smegg99/s99deploy/internal/deploy"
 )
 
@@ -29,14 +30,17 @@ func Main() int {
 // NewRootCmd builds the command tree.
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "s99deploy",
-		Short: "Deploy manifest-carrying apps to /opt under systemd",
+		Use:     "s99deploy",
+		Version: s99deploy.Version(),
+		Short:   "Deploy manifest-carrying apps to /opt under systemd",
 		Long: "One deploy CLI for every same-shape app on the box. Each app repo\n" +
 			"carries a deploy.json manifest; s99deploy owns install, deploy, run,\n" +
 			"and uninstall around that manifest.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+
+	root.SetVersionTemplate("s99deploy {{.Version}}\n")
 
 	root.AddCommand(&cobra.Command{
 		Use:     "install <git-url>",

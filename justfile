@@ -6,7 +6,7 @@ default:
     @just --list
 
 # Every check that gates a commit.
-check: check-fmt vet test build check-cue check-manifests
+check: check-fmt vet test build check-cue check-manifests check-version
 
 # Fail when any Go file is not gofmt clean. Never rewrites.
 check-fmt:
@@ -90,3 +90,19 @@ check-manifests:
 # Remove generated output.
 clean:
     rm -rf bin
+
+# Fail when VERSION is malformed, or disagrees with the tag on HEAD.
+check-version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="{{justfile_directory()}}"
+    declared="$(cat "$root/VERSION")"
+    if [[ ! "$declared" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+        echo "VERSION = '$declared', want MAJOR.MINOR.PATCH" >&2
+        exit 1
+    fi
+    tag="$(git -C "$root" tag --points-at HEAD | head -1)"
+    if [ -n "$tag" ] && [ "$tag" != "v$declared" ]; then
+        echo "tag $tag on HEAD disagrees with VERSION $declared" >&2
+        exit 1
+    fi
