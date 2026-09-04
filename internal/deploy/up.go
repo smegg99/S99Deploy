@@ -36,7 +36,7 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 		return err
 	}
 	as := AsUser{
-		Name: name, Home: root, Dir: appDir,
+		Name: name, Home: account.Home, Dir: appDir,
 		UID: account.UID, GID: account.GID, Groups: account.Groups,
 	}
 

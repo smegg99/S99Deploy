@@ -5,8 +5,10 @@ package deploy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/smegg99/s99logger"
 
@@ -22,6 +24,9 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err := d.requireRoot(); err != nil {
 		return Installed{}, err
 	}
+	if err := requireAgent(gitURL); err != nil {
+		return Installed{}, err
+	}
 	if err := os.MkdirAll(d.cfg.OptDir, 0o755); err != nil {
 		return Installed{}, err
 	}
@@ -35,7 +40,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 
 	checkout := filepath.Join(tmp, "app")
 	end := d.cfg.Progress.Begin(StepClone, gitURL)
-	err = d.cfg.Runner.Run(ctx, nil, "git", "clone", gitURL, checkout)
+	err = d.cfg.Runner.Run(ctx, cloneEnv(), "git", "clone", gitURL, checkout)
 	end(err)
 	if err != nil {
 		return Installed{}, err
@@ -132,4 +137,38 @@ func lockDownEnv(envPath string, uid, gid int) error {
 		return err
 	}
 	return os.Chmod(envPath, 0o600)
+}
+
+// sshURL matches the two spellings git treats as SSH.
+var sshURL = regexp.MustCompile(`^(ssh://|[^/]+@[^/]+:)`)
+
+// requireAgent fails before a clone that would hang on a prompt.
+func requireAgent(gitURL string) error {
+	// No unattended deploy can answer it, and sudo's env_reset drops SSH_AUTH_SOCK.
+	if !sshURL.MatchString(gitURL) {
+		return nil
+	}
+	sock := os.Getenv("SSH_AUTH_SOCK")
+	if sock == "" {
+		return fmt.Errorf(
+			"%s needs SSH and SSH_AUTH_SOCK is unset (sudo drops it). Rerun as:\n"+
+				"  sudo --preserve-env=SSH_AUTH_SOCK s99deploy install %s", gitURL, gitURL)
+	}
+
+	info, err := os.Stat(sock)
+	if err != nil {
+		return fmt.Errorf("SSH_AUTH_SOCK=%s: %w", sock, err)
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("SSH_AUTH_SOCK=%s is not a socket", sock)
+	}
+	return nil
+}
+
+// cloneEnv makes a missing key fail in a second instead of waiting for a prompt.
+func cloneEnv() []string {
+	return append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_SSH_COMMAND=ssh -o BatchMode=yes",
+	)
 }

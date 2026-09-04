@@ -135,3 +135,27 @@ func TestInstallRefusesWithoutRoot(t *testing.T) {
 		t.Fatal("an unprivileged install was allowed")
 	}
 }
+
+// A clone that can prompt is a clone that can hang a deploy forever.
+func TestCloneRunsWithoutPrompts(t *testing.T) {
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+
+	if _, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, call := range runner.Calls {
+		if call.Name != "git" {
+			continue
+		}
+		joined := strings.Join(call.Env, "\n")
+		for _, want := range []string{"GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes"} {
+			if !strings.Contains(joined, want) {
+				t.Errorf("git clone env is missing %q", want)
+			}
+		}
+		return
+	}
+	t.Fatal("git clone was never called")
+}
