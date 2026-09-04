@@ -27,3 +27,12 @@ func TestLiveProberReadsTheStatusCode(t *testing.T) {
 		t.Error("503 was reported as healthy")
 	}
 }
+
+func TestParseUnitStateReadsSystemctlShow(t *testing.T) {
+	state := parseUnitState("ActiveState=active\nSubState=running\nResult=success\nInvocationID=8f2c\n")
+
+	want := UnitState{Active: "active", Sub: "running", Result: "success", InvocationID: "8f2c"}
+	if state != want {
+		t.Errorf("parseUnitState = %+v, want %+v", state, want)
+	}
+}

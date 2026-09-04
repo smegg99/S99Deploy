@@ -93,31 +93,57 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	}
 	d.cfg.Log.Info(s99logger.NewEvent(EventRestarting, s99logger.String("service", name)))
 
-	// A fixed sleep and one reading is what the old code proved liveness with. Task 10 replaces both with waitHealthy.
-	time.Sleep(3 * time.Second)
-	state, err := d.cfg.Units.State(ctx, name)
+	// Read after the restart, not before: a manual restart resets the restart
+	// accounting, so a pre-restart reading would mean nothing.
+	baseline, err := d.cfg.Units.State(ctx, name)
 	if err != nil {
 		return err
 	}
-	if state.Active != "active" {
-		return fmt.Errorf("service failed to start -- journalctl -u %s", name)
-	}
-
 	url := fmt.Sprintf("http://127.0.0.1:%d%s", m.Check.Port, m.Check.Path)
 	end = d.cfg.Progress.Begin(StepHealth, url)
-	policy := backoff.NewExponentialBackOff()
-	policy.InitialInterval = 500 * time.Millisecond
-	policy.MaxElapsedTime = timeout
-	attempt := func() error { return d.cfg.Prober.Probe(ctx, url) }
-	err = backoff.Retry(attempt, backoff.WithContext(policy, ctx))
+	err = d.waitHealthy(ctx, name, url, timeout, baseline)
 	end(err)
 	if err != nil {
-		return fmt.Errorf("%s did not become healthy within %s: %w -- journalctl -u %s",
-			name, timeout, err, name)
+		return fmt.Errorf("%w -- journalctl -u %s", err, name)
 	}
 
 	if commit, err := d.cfg.Runner.OutputAsUser(ctx, as, "git log --oneline -1", envSlice); err == nil {
 		d.cfg.Log.Info(s99logger.NewEvent(EventDeployed, s99logger.String("commit", commit)))
+	}
+	return nil
+}
+
+// waitHealthy replaces the fixed sleep and the one-shot state reading.
+func (d *Deployer) waitHealthy(ctx context.Context, name, url string, timeout time.Duration, baseline UnitState) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	// The deadline is the manifest's own timeout, the proof of life is the
+	// health endpoint, and a unit that failed or restarted under us aborts the
+	// wait at once.
+	attempt := func() error {
+		state, err := d.cfg.Units.State(ctx, name)
+		switch {
+		case err != nil:
+			return backoff.Permanent(err)
+		case state.Active == "failed":
+			return backoff.Permanent(fmt.Errorf("unit %s failed: result %s", name, state.Result))
+		case baseline.InvocationID != "" && state.InvocationID != baseline.InvocationID:
+			return backoff.Permanent(fmt.Errorf("unit %s restarted while starting", name))
+		case state.Active != "active":
+			return fmt.Errorf("unit %s is %s/%s", name, state.Active, state.Sub)
+		}
+		return d.cfg.Prober.Probe(ctx, url)
+	}
+
+	policy := backoff.NewExponentialBackOff()
+	policy.InitialInterval = 250 * time.Millisecond
+	policy.MaxInterval = 2 * time.Second
+	policy.MaxElapsedTime = timeout
+	if err := backoff.Retry(attempt, backoff.WithContext(policy, ctx)); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return fmt.Errorf("%s did not become healthy within %s: %w", name, timeout, err)
 	}
 	return nil
 }
