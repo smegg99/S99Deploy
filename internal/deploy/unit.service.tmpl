@@ -1,3 +1,4 @@
+# internal/deploy/unit.service.tmpl
 [Unit]
 Description={{.Name}} (managed by s99deploy)
 After=network-online.target
@@ -25,7 +26,10 @@ ProtectHome=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
-RestrictAddressFamilies=AF_INET AF_INET6
+# AF_UNIX is not a network family. The resolver, journald's /dev/log, D-Bus and
+# any S99AB work/daemon socket need it. AF_PACKET and AF_NETLINK, the families
+# this option exists to block, stay blocked.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
