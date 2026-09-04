@@ -177,3 +177,15 @@ func TestInstallRefusesToAdoptAForeignAccount(t *testing.T) {
 		t.Error("a unit was written for an account s99deploy refused to adopt")
 	}
 }
+
+func TestInstallDoesNotShellOutForOwnership(t *testing.T) {
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+
+	if _, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+	if runner.Ran("chown") {
+		t.Error("install still runs chown -R")
+	}
+}

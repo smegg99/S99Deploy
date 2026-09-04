@@ -74,7 +74,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		if err := os.Rename(checkout, appDir); err != nil {
 			return Installed{}, err
 		}
-		if err := d.cfg.Runner.Run(ctx, nil, "chown", "-R", m.Name+":"+m.Name, appDir); err != nil {
+		if err := chownTree(appDir, int(account.UID), int(account.GID)); err != nil {
 			return Installed{}, err
 		}
 	}
