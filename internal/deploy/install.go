@@ -98,19 +98,27 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	return Installed{Name: m.Name, Root: root}, nil
 }
 
-// ensureAccount creates the service account when it is missing.
+// ensureAccount creates the service account, and refuses to adopt a foreign one.
 func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Account, error) {
+	// Adopting an account whose home is elsewhere is how a later --purge deletes
+	// the wrong directory.
 	account, err := d.cfg.Accounts.Lookup(name)
-	if err == nil {
-		return account, nil
-	}
-	if !errors.Is(err, ErrNoAccount) {
+	switch {
+	case errors.Is(err, ErrNoAccount):
+		if err := d.cfg.Accounts.Create(ctx, name, home); err != nil {
+			return Account{}, err
+		}
+		return d.cfg.Accounts.Lookup(name)
+	case err != nil:
 		return Account{}, err
 	}
-	if err := d.cfg.Accounts.Create(ctx, name, home); err != nil {
-		return Account{}, err
+
+	if got := filepath.Clean(account.Home); got != home {
+		return Account{}, fmt.Errorf(
+			"account %s already exists with home %s, want %s; s99deploy will not adopt it",
+			name, got, home)
 	}
-	return d.cfg.Accounts.Lookup(name)
+	return account, nil
 }
 
 // seedEnv creates /opt/<name>/.env on first install.

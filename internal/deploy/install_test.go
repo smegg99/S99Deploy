@@ -159,3 +159,21 @@ func TestCloneRunsWithoutPrompts(t *testing.T) {
 	}
 	t.Fatal("git clone was never called")
 }
+
+// The mismatch is caught at adoption time, not when --purge has two homes.
+func TestInstallRefusesToAdoptAForeignAccount(t *testing.T) {
+	cfg, runner, accounts, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	accounts.Users["myapp"] = deploy.Account{
+		Name: "myapp", Home: "/home/someone-else",
+		UID: uint32(os.Getuid()), GID: uint32(os.Getgid()),
+	}
+
+	_, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
+	if err == nil || !strings.Contains(err.Error(), "/home/someone-else") {
+		t.Fatalf("err = %v, want it to name the foreign home", err)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.UnitDir, "myapp.service")); !os.IsNotExist(err) {
+		t.Error("a unit was written for an account s99deploy refused to adopt")
+	}
+}
