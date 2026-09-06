@@ -3,38 +3,31 @@
 package site
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-const usageText = `s99deploy -- deploy manifest-carrying apps to /opt under systemd
-
-Install on a VPS:
-
-  curl -fsSL %[1]s/install.sh | sudo sh
-
-Or by hand:
-
-  sudo curl -fsSL %[1]s/s99deploy -o /usr/local/bin/s99deploy
-  sudo chmod 0755 /usr/local/bin/s99deploy
-
-Docs: https://github.com/smegg99/S99Deploy
-`
-
-const installScript = `#!/bin/sh
-set -eu
-curl -fsSL %[1]s/s99deploy -o /usr/local/bin/s99deploy
-chmod 0755 /usr/local/bin/s99deploy
-echo "installed /usr/local/bin/s99deploy"
-`
-
 func (s *Server) usage(c *gin.Context) {
-	c.String(http.StatusOK, usageText, s.baseURL(c))
+	c.String(http.StatusOK, usageText, s.baseURL(c), s.version)
 }
 
 func (s *Server) installScript(c *gin.Context) {
-	c.String(http.StatusOK, installScript, s.baseURL(c))
+	sum, _, err := s.binary.get()
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "s99deploy: %s is not readable\n", s.cfg.BinPath)
+		return
+	}
+	c.String(http.StatusOK, installScript, s.baseURL(c), s.version, sum)
+}
+
+// checksum is the sha256sum file format: the digest, two spaces, the name.
+func (s *Server) checksum(c *gin.Context) {
+	sum, _, err := s.binary.get()
+	if err != nil {
+		c.String(http.StatusServiceUnavailable, "s99deploy: %s is not readable\n", s.cfg.BinPath)
+		return
+	}
+	c.String(http.StatusOK, "%s  s99deploy\n", sum)
 }
 
 func (s *Server) serveBinary(c *gin.Context) {

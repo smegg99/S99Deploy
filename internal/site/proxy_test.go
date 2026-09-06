@@ -5,6 +5,8 @@ package site
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -67,7 +69,11 @@ func TestForwardedScheme(t *testing.T) {
 
 func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	server, err := New(&Config{BinPath: "unused", TrustedProxies: []string{"127.0.0.1"}}, "1.0.0")
+	binPath := filepath.Join(t.TempDir(), "s99deploy")
+	if err := os.WriteFile(binPath, []byte("ELFBYTES"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	server, err := New(&Config{BinPath: binPath, TrustedProxies: []string{"127.0.0.1"}}, "1.0.0")
 	if err != nil {
 		t.Fatal(err)
 	}
