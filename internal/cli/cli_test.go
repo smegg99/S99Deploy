@@ -36,7 +36,9 @@ func TestExitCodeTable(t *testing.T) {
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, stdout: "Usage:"},
 		{name: "version", args: []string{"--version"}, code: 0, stdout: "s99deploy 1.0.0"},
-		{name: "no args", args: nil, code: 0, stdout: "Usage:"},
+		// Not nil: cobra reads os.Args[1:] for a nil argument list, which in a
+		// test is the test binary's own flags.
+		{name: "no args", args: []string{}, code: 0, stdout: "Usage:"},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2,
 			stderr: "unknown flag: --nope", usage: true},
 		{name: "unknown command", args: []string{"bogus"}, code: 2,
