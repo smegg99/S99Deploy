@@ -40,8 +40,8 @@ func New(cfg Config) *Deployer {
 	return &Deployer{cfg: cfg}
 }
 
-// root is /opt/<name>, the one directory this tool owns per app.
-func (d *Deployer) root(name string) string { return filepath.Join(d.cfg.OptDir, name) }
+// Root is /opt/<name>, the one directory this tool owns per app.
+func (d *Deployer) Root(name string) string { return filepath.Join(d.cfg.OptDir, name) }
 
 // unitPath is where the generated unit for name lives.
 func (d *Deployer) unitPath(name string) string {

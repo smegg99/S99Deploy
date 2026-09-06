@@ -21,7 +21,10 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	if err := d.requireRoot(); err != nil {
 		return err
 	}
-	root := d.root(name)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	root := d.Root(name)
 	appDir := filepath.Join(root, "app")
 	envPath := filepath.Join(root, ".env")
 	if _, err := os.Stat(filepath.Join(appDir, ".git")); err != nil {

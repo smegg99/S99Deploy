@@ -27,7 +27,7 @@ func (d *Deployer) Uninstall(ctx context.Context, name string, purge bool) error
 	}
 
 	// The checkout, .env and account survive unless purge is set.
-	root := d.root(name)
+	root := d.Root(name)
 	var account Account
 	var deletable bool
 	if purge {

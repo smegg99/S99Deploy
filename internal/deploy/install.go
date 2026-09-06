@@ -24,6 +24,9 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err := d.requireRoot(); err != nil {
 		return Installed{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return Installed{}, err
+	}
 	if err := requireAgent(gitURL); err != nil {
 		return Installed{}, err
 	}
@@ -51,7 +54,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err != nil {
 		return Installed{}, err
 	}
-	root := d.root(m.Name)
+	root := d.Root(m.Name)
 	appDir := filepath.Join(root, "app")
 
 	account, err := d.ensureAccount(ctx, m.Name, root)
