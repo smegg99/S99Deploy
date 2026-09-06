@@ -16,14 +16,11 @@ import (
 func testRouter(t *testing.T, binPath string) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	router, err := BuildRouter(&Config{
-		BinPath:        binPath,
-		TrustedProxies: []string{"127.0.0.1", "::1"},
-	})
+	server, err := New(&Config{BinPath: binPath, TrustedProxies: []string{"127.0.0.1", "::1"}}, "1.0.0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return router
+	return server.Router()
 }
 
 func get(t *testing.T, router *gin.Engine, path string, forwardedProto string) *httptest.ResponseRecorder {

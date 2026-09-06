@@ -8,11 +8,9 @@ type Config struct {
 
 	ListenAddr string `json:"listen_addr"`
 
-	// The CLI binary served at /s99deploy, built by the deploy alongside the
-	// site binary. Relative to the working directory (the app checkout).
+	// The CLI binary served at /s99deploy, relative to the working directory.
 	BinPath string `json:"bin_path"`
 
-	// Whose X-Forwarded-Proto is believed when building the URLs printed by /
-	// and /install.sh. Empty trusts nobody.
+	// Peers trusted for X-Forwarded-Proto and gin ClientIP: addresses or CIDR blocks; empty trusts nobody.
 	TrustedProxies []string `json:"trusted_proxies"`
 }

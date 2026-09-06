@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/smegg99/s99logger"
 
+	"github.com/smegg99/s99deploy"
 	"github.com/smegg99/s99deploy/internal/site"
 )
 
@@ -28,13 +29,13 @@ func main() {
 	}
 	gin.SetMode(cfg.GinMode)
 
-	router, err := site.BuildRouter(cfg)
+	server, err := site.New(cfg, s99deploy.Version())
 	if err != nil {
 		s99logger.Fatal(s99logger.NewEvent("router_failed", s99logger.Err(err)))
 	}
 
 	s99logger.Info(s99logger.NewEvent("listening", s99logger.String("addr", cfg.ListenAddr)))
-	if err := router.Run(cfg.ListenAddr); err != nil {
+	if err := server.Router().Run(cfg.ListenAddr); err != nil {
 		s99logger.Fatal(s99logger.NewEvent("server_failed", s99logger.Err(err)))
 	}
 }

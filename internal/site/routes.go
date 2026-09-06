@@ -3,7 +3,6 @@
 package site
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,32 +29,14 @@ chmod 0755 /usr/local/bin/s99deploy
 echo "installed /usr/local/bin/s99deploy"
 `
 
-// BuildRouter serves usage text, the install script, and the binary.
-func BuildRouter(cfg *Config) (*gin.Engine, error) {
-	router := gin.New()
-	router.Use(gin.Recovery())
-	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
-		return nil, fmt.Errorf("set trusted proxies: %w", err)
-	}
-
-	router.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, usageText, baseURL(c))
-	})
-	router.GET("/install.sh", func(c *gin.Context) {
-		c.String(http.StatusOK, installScript, baseURL(c))
-	})
-	router.GET("/s99deploy", func(c *gin.Context) {
-		c.FileAttachment(cfg.BinPath, "s99deploy")
-	})
-
-	return router, nil
+func (s *Server) usage(c *gin.Context) {
+	c.String(http.StatusOK, usageText, s.baseURL(c))
 }
 
-// baseURL reconstructs the public URL for the text endpoints.
-func baseURL(c *gin.Context) string {
-	scheme := c.GetHeader("X-Forwarded-Proto")
-	if scheme == "" {
-		scheme = "http"
-	}
-	return scheme + "://" + c.Request.Host
+func (s *Server) installScript(c *gin.Context) {
+	c.String(http.StatusOK, installScript, s.baseURL(c))
+}
+
+func (s *Server) serveBinary(c *gin.Context) {
+	c.FileAttachment(s.cfg.BinPath, "s99deploy")
 }
