@@ -3,7 +3,11 @@
 package site
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,3 +53,25 @@ func New(cfg *Config, version string) (*Server, error) {
 
 // Router is the handler, for a test that drives it without a listener.
 func (s *Server) Router() *gin.Engine { return s.router }
+
+// Serve listens until ctx is cancelled, then drains in-flight requests.
+func (s *Server) Serve(ctx context.Context, addr string) error {
+	// A signal is a clean stop for a server, so this returns nil.
+	// The cancel releases the waiter below when the listen itself fails.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	server := &http.Server{Addr: addr, Handler: s.router}
+	idle := make(chan error, 1)
+
+	go func() {
+		<-ctx.Done()
+		stop, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		idle <- server.Shutdown(stop)
+	}()
+
+	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return <-idle
+}

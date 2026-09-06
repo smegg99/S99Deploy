@@ -4,7 +4,6 @@
 		"go build -trimpath -o bin/s99deploy ./cmd/s99deploy",
 		"go build -trimpath -o bin/s99deploy-site ./cmd/s99deploy-site"
 	],
-	"run": ["bin/s99deploy-site"],
-	"env": { "CONFIG_PATH": "config.json" },
-	"check": { "port": 9250 }
+	"run": ["bin/s99deploy-site", "serve", "--config", "config.json"],
+	"check": { "port": 9250, "path": "/", "timeout_seconds": 30 }
 }

@@ -39,7 +39,7 @@ build:
 
 # Run the hosting site locally.
 site: build
-    CONFIG_PATH=config.json ./bin/{{app_name}}-site
+    ./bin/{{app_name}}-site serve --config config.json
 
 # Install the CLI system-wide (run this on the VPS).
 install: build
