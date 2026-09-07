@@ -89,9 +89,14 @@ func TestFailedWorkIsOneLine(t *testing.T) {
 
 // --yes skips the prompt, so an unattended purge is possible and testable.
 func TestUninstallPromptAndYes(t *testing.T) {
-	opts, _, _ := testOptions(t, "wrong-name\n")
+	// The fake box has no unit for myapp, so a run that reached Uninstall would
+	// also exit 1. Only the abort line tells the two apart.
+	opts, _, stderr := testOptions(t, "wrong-name\n")
 	if code := run(context.Background(), opts, []string{"uninstall", "myapp"}); code != 1 {
 		t.Error("a mistyped name did not abort")
+	}
+	if !strings.Contains(stderr.String(), "s99deploy: aborted") {
+		t.Errorf("stderr = %q, want the abort line", stderr)
 	}
 
 	opts, stdout, _ := testOptions(t, "")
