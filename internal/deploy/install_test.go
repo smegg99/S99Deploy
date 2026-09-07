@@ -189,3 +189,39 @@ func TestInstallDoesNotShellOutForOwnership(t *testing.T) {
 		t.Error("install still runs chown -R")
 	}
 }
+
+// The service account owns /opt/<name>, so it can put a link where .env goes.
+func TestInstallRefusesAnEnvThatIsNotARegularFile(t *testing.T) {
+	// Chown and chmod through the link would hand the account a file it was
+	// never meant to own, anywhere on the box.
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	d := deploy.New(cfg)
+	if _, err := d.Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+
+	root := filepath.Join(cfg.OptDir, "myapp")
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("SECRET=1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, ".env")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(root, ".env")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := d.Install(context.Background(), "https://example.com/myapp.git")
+	if err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("err = %v, want the linked .env refused", err)
+	}
+	info, err := os.Lstat(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o644 {
+		t.Errorf("the file the link pointed at is now %v, want 644", perm)
+	}
+}

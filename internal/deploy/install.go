@@ -127,27 +127,49 @@ func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Accoun
 // seedEnv creates /opt/<name>/.env on first install.
 func (d *Deployer) seedEnv(root, appDir string, uid, gid int) error {
 	// From .env.example when the app ships one, because both up and the unit's EnvironmentFile need the file to exist.
+	// The service account owns root, so it can put a symlink where .env goes.
+	// Every step below is taken through an os.Root, which refuses to follow one
+	// out of the directory, and refuses a .env that is not a regular file.
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
 	envPath := filepath.Join(root, ".env")
-	if _, err := os.Stat(envPath); err == nil {
-		return lockDownEnv(envPath, uid, gid)
+	switch info, err := dir.Lstat(".env"); {
+	case err == nil && !info.Mode().IsRegular():
+		return fmt.Errorf("%s is %s, not a regular file", envPath, info.Mode().Type())
+	case err == nil:
+		return lockDownEnv(dir, envPath, uid, gid)
+	case !os.IsNotExist(err):
+		return err
 	}
 
 	example, err := os.ReadFile(filepath.Join(appDir, ".env.example"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if err := os.WriteFile(envPath, example, 0o600); err != nil {
+	file, err := dir.OpenFile(".env", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(example); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
 		return err
 	}
 	d.cfg.Log.Info(s99logger.NewEvent(EventCreatedEnv, s99logger.String("path", envPath)))
-	return lockDownEnv(envPath, uid, gid)
+	return lockDownEnv(dir, envPath, uid, gid)
 }
 
-func lockDownEnv(envPath string, uid, gid int) error {
-	if err := os.Chown(envPath, uid, gid); err != nil {
-		return err
+func lockDownEnv(dir *os.Root, envPath string, uid, gid int) error {
+	if err := dir.Lchown(".env", uid, gid); err != nil {
+		return fmt.Errorf("chown %s: %w", envPath, err)
 	}
-	return os.Chmod(envPath, 0o600)
+	return dir.Chmod(".env", 0o600)
 }
 
 // sshURL matches the two spellings git treats as SSH.
