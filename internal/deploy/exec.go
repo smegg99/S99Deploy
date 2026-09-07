@@ -75,12 +75,11 @@ func (r *liveRunner) asUser(ctx context.Context, a AsUser, command string, env [
 	cmd := exec.CommandContext(ctx, "bash", "-lc", command)
 	cmd.Dir = a.Dir
 	cmd.Env = asUserEnv(a, env)
-	// Stdin is nil: no build step reads the terminal, and Setpgid detaches it
-	// from the foreground group anyway, where a terminal read would stop it.
+	// Stdin is nil: no build step reads the terminal, and the group groupCancel
+	// puts this in is not the foreground one, where a read would stop it.
 	cmd.Stdin = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: a.UID, Gid: a.GID, Groups: a.Groups},
-		Setpgid:    true,
 	}
 	return cmd
 }
@@ -112,6 +111,13 @@ func cause(ctx context.Context, err error) error {
 func groupCancel(cmd *exec.Cmd, grace time.Duration) (disarm func()) {
 	var mu sync.Mutex
 	var kill *time.Timer
+
+	// The kill below names a group, so arming is what creates one. Leaving this
+	// to the caller is how kill(-pid) ends up naming a group nobody is in.
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setpgid = true
 
 	// os/exec signals the direct child only, and WaitDelay kills only that child
 	// too, so the escalation is explicit. The returned function disarms the kill

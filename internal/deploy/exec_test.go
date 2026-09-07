@@ -88,14 +88,17 @@ func TestCancelledProcessReportsContextCanceled(t *testing.T) {
 // The reason for Setpgid, asserted rather than assumed.
 func TestGroupCancelReachesAGrandchild(t *testing.T) {
 	// os/exec signals the direct child only, so a compiler started by the shell
-	// would survive the cancel and race the next run.
+	// would survive the cancel and race the next run. Nothing here sets Setpgid:
+	// arming the cancel must be what creates the group it kills.
 	pidFile := filepath.Join(t.TempDir(), "pid")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bash", "-lc", "sleep 60 & echo $! > "+pidFile+"; wait")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	disarm := groupCancel(cmd, time.Second)
+	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setpgid {
+		t.Fatal("arming the cancel did not put the command in its own group")
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
