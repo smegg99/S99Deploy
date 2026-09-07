@@ -37,8 +37,9 @@ func New(cfg *Config, version string) (*Server, error) {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	// gin's ClientIP and this site's scheme check are configured from one field,
-	// so the two can never disagree.
+	// gin's ClientIP and this site's scheme check are configured from one field
+	// and parse it apart. newProxySet has already refused every entry the two
+	// would read differently, so what reaches gin here it reads the same way.
 	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
 		return nil, fmt.Errorf("set trusted proxies: %w", err)
 	}

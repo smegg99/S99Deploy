@@ -15,11 +15,13 @@ type proxySet struct{ prefixes []netip.Prefix }
 
 // newProxySet accepts the two spellings trusted_proxies takes: address and CIDR.
 func newProxySet(entries []string) (proxySet, error) {
+	// gin parses the same field with its own rules, so an entry the two read
+	// differently is refused here rather than believed by only one of them.
 	set := proxySet{prefixes: make([]netip.Prefix, 0, len(entries))}
 	for _, entry := range entries {
 		if prefix, err := netip.ParsePrefix(entry); err == nil {
-			if prefix.Addr().Is4In6() && prefix.Bits() >= 96 {
-				prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+			if prefix.Addr().Is4In6() {
+				return proxySet{}, mappedEntry(entry, prefix.Addr())
 			}
 			set.prefixes = append(set.prefixes, prefix.Masked())
 			continue
@@ -29,10 +31,17 @@ func newProxySet(entries []string) (proxySet, error) {
 		if err != nil {
 			return proxySet{}, fmt.Errorf("trusted_proxies: %q is neither an address nor a CIDR block", entry)
 		}
-		addr = addr.Unmap()
+		if addr.Is4In6() {
+			return proxySet{}, mappedEntry(entry, addr)
+		}
 		set.prefixes = append(set.prefixes, netip.PrefixFrom(addr, addr.BitLen()))
 	}
 	return set, nil
+}
+
+// mappedEntry names the plain spelling of an IPv4-mapped IPv6 entry.
+func mappedEntry(entry string, addr netip.Addr) error {
+	return fmt.Errorf("trusted_proxies: %q is an IPv4 address written as IPv6; write it as %s", entry, addr.Unmap())
 }
 
 // has reports whether ip is one of the peers this site believes.

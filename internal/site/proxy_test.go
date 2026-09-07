@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -103,14 +104,31 @@ func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
 	}
 }
 
-func TestProxySetAcceptsMappedAddressConfiguration(t *testing.T) {
-	for _, entry := range []string{"::ffff:10.4.2.1", "::ffff:10.0.0.0/104"} {
-		set, err := newProxySet([]string{entry})
-		if err != nil {
-			t.Fatal(err)
+// gin reads an IPv4-mapped entry as a 128-bit prefix; this site unmaps it.
+func TestProxySetRefusesAMappedAddressConfiguration(t *testing.T) {
+	// One field feeds both, so an entry the two read differently is a config
+	// error, not something for one of them to quietly reinterpret.
+	for _, c := range []struct{ entry, plain string }{
+		{entry: "::ffff:10.4.2.1", plain: "10.4.2.1"},
+		{entry: "::ffff:10.0.0.0/104", plain: "10.0.0.0"},
+	} {
+		_, err := newProxySet([]string{c.entry})
+		if err == nil {
+			t.Fatalf("%s was accepted", c.entry)
 		}
-		if !set.has("10.4.2.1") || !set.has("::ffff:10.4.2.1") {
-			t.Errorf("%s does not trust its configured address", entry)
+		if !strings.Contains(err.Error(), c.plain) {
+			t.Errorf("err = %v, want it to name %s", err, c.plain)
 		}
+	}
+}
+
+// The plain spelling of the same address is what both parsers agree on.
+func TestProxySetTrustsThePlainSpelling(t *testing.T) {
+	set, err := newProxySet([]string{"10.4.2.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !set.has("10.4.2.1") || !set.has("::ffff:10.4.2.1") {
+		t.Error("10.4.2.1 does not trust its own peer")
 	}
 }
