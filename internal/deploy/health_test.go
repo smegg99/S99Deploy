@@ -78,6 +78,10 @@ func TestWaitHealthyStopsAtCancel(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want it to wrap context.Canceled", err)
 	}
+	// An interrupt is not a health verdict, so it passes through unwrapped.
+	if strings.Contains(err.Error(), "did not become healthy") {
+		t.Errorf("err = %v, want the bare cancellation", err)
+	}
 }
 
 type deadlineProber struct{}
@@ -97,6 +101,11 @@ func TestHealthTimeoutBoundsAnInFlightProbe(t *testing.T) {
 	err := deploy.New(cfg).WaitHealthyForTest(ctx, "myapp", "http://127.0.0.1:1/", 25*time.Millisecond, units.States["myapp"])
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("error = %v", err)
+	}
+	// The wait's own deadline is a failed health check, so it says which app
+	// and how long it waited. Only a cancelled caller passes through unwrapped.
+	if !strings.Contains(err.Error(), "myapp did not become healthy within 25ms") {
+		t.Errorf("error = %v, want it to name the app and the timeout", err)
 	}
 	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
 		t.Fatalf("25ms health timeout took %s", elapsed)

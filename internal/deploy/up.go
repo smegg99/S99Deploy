@@ -118,7 +118,10 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 
 // waitHealthy replaces the fixed sleep and the one-shot state reading.
 func (d *Deployer) waitHealthy(ctx context.Context, name, url string, timeout time.Duration, baseline UnitState) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	// The caller's context stays under its own name: the deadline below is this
+	// wait's own, and expiring it is a failed health check, not an interrupt.
+	caller := ctx
+	ctx, cancel := context.WithTimeout(caller, timeout)
 	defer cancel()
 	// The deadline is the manifest's own timeout, the proof of life is the
 	// health endpoint, and a unit that failed or restarted under us aborts the
@@ -143,7 +146,7 @@ func (d *Deployer) waitHealthy(ctx context.Context, name, url string, timeout ti
 	policy.MaxInterval = 2 * time.Second
 	policy.MaxElapsedTime = timeout
 	if err := backoff.Retry(attempt, backoff.WithContext(policy, ctx)); err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
+		if ctxErr := caller.Err(); ctxErr != nil {
 			return ctxErr
 		}
 		return fmt.Errorf("%s did not become healthy within %s: %w", name, timeout, err)
