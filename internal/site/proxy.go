@@ -5,6 +5,7 @@ package site
 import (
 	"fmt"
 	"net/netip"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -61,7 +62,7 @@ func (s proxySet) has(ip string) bool {
 }
 
 // baseURL is the public origin the printed commands point at.
-func (s *Server) baseURL(c *gin.Context) string {
+func (s *Server) baseURL(c *gin.Context) (string, bool) {
 	// TLS terminates at the proxy, so the scheme can only come from the
 	// forwarded header, and only from a peer in trusted_proxies.
 	scheme := "http"
@@ -73,8 +74,17 @@ func (s *Server) baseURL(c *gin.Context) string {
 			scheme = forwarded
 		}
 	}
-	return scheme + "://" + c.Request.Host
+
+	host := c.Request.Host
+	if !hostName.MatchString(host) {
+		return "", false
+	}
+	return scheme + "://" + host, true
 }
+
+// hostName is the host a served command may quote, and nothing else.
+// net/http lets $ ( ) ' and ; through, and the install script is read by root.
+var hostName = regexp.MustCompile(`^([A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+])(:[0-9]{1,5})?$`)
 
 // forwardedScheme takes the first value of a comma-joined header, http or https.
 func forwardedScheme(header string) string {

@@ -3,7 +3,9 @@
 package site
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInstallScriptVerifiesBeforeInstalling(t *testing.T) {
@@ -66,5 +69,60 @@ func TestInstallScriptVerifiesBeforeInstalling(t *testing.T) {
 				t.Fatalf("temporary downloads survived: %v, %v", leftovers, err)
 			}
 		})
+	}
+}
+
+// A hostile Host reaches the served script as bytes root's shell will expand.
+func TestServedScriptQuotesNoHostItWasNotGiven(t *testing.T) {
+	// net/http passes $ ( ) and ' through, and the script assigns url="...".
+	// The proof is the script itself: it is run, and must create nothing.
+	router, _ := serving(t, "ELFBYTES")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: router}
+	go server.Serve(listener)
+	defer server.Close()
+
+	// A bare name: net/http rejects a Host carrying a slash on its own, and
+	// this test is about what the site does with the ones it lets through.
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "PWNED")
+	const host = "x$(touch$IFS'PWNED')y"
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fmt.Fprintf(conn,
+		"GET /install.sh HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", host); err != nil {
+		t.Fatal(err)
+	}
+	answer, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(answer), "400 Bad Request") {
+		t.Errorf("status line = %q, want 400", strings.SplitN(string(answer), "\r\n", 2)[0])
+	}
+	if strings.Contains(string(answer), "$(") {
+		t.Errorf("the answer carries the host verbatim:\n%s", answer)
+	}
+
+	body := strings.SplitN(string(answer), "\r\n\r\n", 2)[1]
+	cmd := exec.Command("sh")
+	cmd.Stdin = strings.NewReader(body)
+	cmd.Dir = dir
+	// The real PATH, so the injected touch would resolve if it ever ran.
+	cmd.Env = append(os.Environ(), "TMPDIR="+dir)
+	_, _ = cmd.CombinedOutput()
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("the served answer executed the host: %v", err)
 	}
 }

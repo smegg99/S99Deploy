@@ -68,7 +68,9 @@ func TestForwardedScheme(t *testing.T) {
 	}
 }
 
-func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
+// newServer is a site that trusts the loopback and nothing else.
+func newServer(t *testing.T) *Server {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	binPath := filepath.Join(t.TempDir(), "s99deploy")
 	if err := os.WriteFile(binPath, []byte("ELFBYTES"), 0o755); err != nil {
@@ -78,6 +80,11 @@ func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return server
+}
+
+func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
+	server := newServer(t)
 
 	for _, c := range []struct {
 		name, peer, forwarded, want string
@@ -97,7 +104,11 @@ func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
 			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 			ctx.Request = req
 
-			if got := server.baseURL(ctx); got != c.want {
+			got, ok := server.baseURL(ctx)
+			if !ok {
+				t.Fatalf("baseURL refused host %q", req.Host)
+			}
+			if got != c.want {
 				t.Errorf("baseURL = %q, want %q", got, c.want)
 			}
 		})
@@ -130,5 +141,45 @@ func TestProxySetTrustsThePlainSpelling(t *testing.T) {
 	}
 	if !set.has("10.4.2.1") || !set.has("::ffff:10.4.2.1") {
 		t.Error("10.4.2.1 does not trust its own peer")
+	}
+}
+
+// The install script is read by root, so the host it quotes is checked first.
+func TestBaseURLRefusesAHostTheScriptCannotQuote(t *testing.T) {
+	// net/http rejects a backtick, a quote and a backslash, and lets $ ( ) '
+	// and ; through. Inside the script's url="..." those still expand.
+	server := newServer(t)
+	for _, host := range []string{
+		"x$(touch /tmp/pwned)y", "x$(id)y", "x'y", "x$IFSy", "x;idy", "x&y", "", "x/y",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = host
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx.Request = req
+
+		if base, ok := server.baseURL(ctx); ok {
+			t.Errorf("host %q was accepted as %q", host, base)
+		}
+	}
+}
+
+func TestBaseURLTakesTheHostsAProxyActuallySends(t *testing.T) {
+	server := newServer(t)
+	for _, host := range []string{
+		"get.example.com", "get.example.com:9250", "127.0.0.1:9250", "[::1]:9250", "localhost",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = host
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx.Request = req
+
+		base, ok := server.baseURL(ctx)
+		if !ok {
+			t.Errorf("host %q was refused", host)
+			continue
+		}
+		if !strings.HasSuffix(base, "://"+host) {
+			t.Errorf("baseURL = %q, want it to end in %q", base, host)
+		}
 	}
 }
