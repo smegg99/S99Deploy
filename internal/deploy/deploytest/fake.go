@@ -21,6 +21,7 @@ type Call struct {
 	Args    []string
 	Env     []string
 	AsUser  string
+	As      deploy.AsUser
 	Command string
 }
 
@@ -59,7 +60,7 @@ func (r *Runner) Output(ctx context.Context, env []string, name string, args ...
 }
 
 func (r *Runner) RunAsUser(_ context.Context, a deploy.AsUser, command string, env []string) error {
-	r.Calls = append(r.Calls, Call{AsUser: a.Name, Command: command, Env: env})
+	r.Calls = append(r.Calls, Call{AsUser: a.Name, As: a, Command: command, Env: env})
 	if err := r.Fail[command]; err != nil {
 		return err
 	}

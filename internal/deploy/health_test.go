@@ -5,11 +5,13 @@ package deploy_test
 import (
 	"context"
 	"errors"
-	"github.com/smegg99/s99deploy/internal/deploy"
-	"github.com/smegg99/s99deploy/internal/deploy/deploytest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/smegg99/s99deploy/internal/deploy"
+	"github.com/smegg99/s99deploy/internal/deploy/deploytest"
 )
 
 // A crash loop must not be polled until the deadline.
@@ -151,5 +153,38 @@ func TestUpDoesNotRestartAfterACancelledBuild(t *testing.T) {
 	err := d.Up(context.Background(), "myapp", time.Second)
 	if !errors.Is(err, context.Canceled) || units.Restarts != 0 {
 		t.Fatalf("error=%v restarts=%d", err, units.Restarts)
+	}
+}
+
+// git reads .gitconfig and .ssh from HOME, which is the account's, not /opt/<name>.
+func TestUpRunsWithTheAccountsOwnHome(t *testing.T) {
+	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	d := deploy.New(cfg)
+	if _, err := d.Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+	// A home that is not the app root, which is what the old code passed.
+	account := accounts.Users["myapp"]
+	account.Home = filepath.Join(t.TempDir(), "home", "myapp")
+	accounts.Users["myapp"] = account
+	units.States["myapp"] = deploy.UnitState{Active: "active", InvocationID: "first"}
+
+	if err := d.Up(context.Background(), "myapp", time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	var seen int
+	for _, call := range runner.Calls {
+		if call.AsUser == "" {
+			continue
+		}
+		seen++
+		if call.As.Home != account.Home {
+			t.Errorf("%q ran with HOME=%s, want %s", call.Command, call.As.Home, account.Home)
+		}
+	}
+	if seen == 0 {
+		t.Fatal("nothing ran as the account")
 	}
 }
