@@ -8,12 +8,13 @@ import (
 )
 
 func TestRenderUnit(t *testing.T) {
+	// Not the production path: a template that hardcoded it would pass.
 	unit := RenderUnit(UnitParams{
-		Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/s99deploy",
+		Name: "myapp", Root: "/opt/myapp", SelfPath: "/tmp/elsewhere/s99deploy",
 	})
 
 	for _, want := range []string{
-		"ExecStart=/usr/local/bin/s99deploy run /opt/myapp",
+		"ExecStart=/tmp/elsewhere/s99deploy run /opt/myapp",
 		"User=myapp",
 		"EnvironmentFile=/opt/myapp/.env",
 		"WorkingDirectory=/opt/myapp/app",
