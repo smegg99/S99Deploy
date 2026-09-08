@@ -98,12 +98,39 @@ func (r *Runner) Ran(name string, args ...string) bool {
 
 // Accounts is the passwd database as a map.
 type Accounts struct {
-	Users   map[string]deploy.Account
-	Created []string
-	Deleted []string
+	Users    map[string]deploy.Account
+	Created  []string
+	Deleted  []string
+	UID, GID uint32
 }
 
-func NewAccounts() *Accounts { return &Accounts{Users: map[string]deploy.Account{}} }
+// NewAccounts gives created accounts this process's own ids.
+func NewAccounts() *Accounts {
+	// Real ids, so the ownership calls under test are syscalls an unprivileged
+	// test can make. Set GID to AltGID to tell a chown that ran from one that
+	// did not.
+	return &Accounts{
+		Users: map[string]deploy.Account{},
+		UID:   uint32(os.Getuid()),
+		GID:   uint32(os.Getgid()),
+	}
+}
+
+// AltGID is a group this process may chown to that is not the one it already has.
+func AltGID(t *testing.T) uint32 {
+	t.Helper()
+	groups, err := os.Getgroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gid := range groups {
+		if gid != os.Getgid() {
+			return uint32(gid)
+		}
+	}
+	t.Skip("this account is in no group but its own, so a chown cannot be observed")
+	return 0
+}
 
 func (a *Accounts) Lookup(name string) (deploy.Account, error) {
 	account, ok := a.Users[name]
@@ -115,11 +142,7 @@ func (a *Accounts) Lookup(name string) (deploy.Account, error) {
 
 func (a *Accounts) Create(_ context.Context, name, home string) error {
 	a.Created = append(a.Created, name)
-	// This process's own uid and gid, so the ownership calls under test are real syscalls an unprivileged test can make.
-	a.Users[name] = deploy.Account{
-		Name: name, Home: home,
-		UID: uint32(os.Getuid()), GID: uint32(os.Getgid()),
-	}
+	a.Users[name] = deploy.Account{Name: name, Home: home, UID: a.UID, GID: a.GID}
 	return nil
 }
 

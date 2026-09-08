@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/smegg99/s99deploy/internal/deploy"
@@ -44,6 +45,9 @@ func clones(t *testing.T, runner *deploytest.Runner, extra map[string]string) {
 func TestInstallLaysOutTheApp(t *testing.T) {
 	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
 	clones(t, runner, map[string]string{".env.example": "TOKEN=\n"})
+	// A group this process is in but is not already running as, so every chown
+	// the install makes is something the test can read back.
+	accounts.GID = deploytest.AltGID(t)
 
 	installed, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
 	if err != nil {
@@ -92,11 +96,27 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 	if accounts.Created == nil || accounts.Created[0] != "myapp" {
 		t.Errorf("Created = %v, want [myapp]", accounts.Created)
 	}
-	if units.Reloads != 1 || len(units.Enabled) != 1 {
+	if units.Reloads != 1 || len(units.Enabled) != 1 || units.Enabled[0] != "myapp" {
 		t.Errorf("reloads = %d, enabled = %v, want 1 and [myapp]", units.Reloads, units.Enabled)
 	}
 	if !runner.Ran("git", "clone") {
 		t.Error("nothing cloned")
+	}
+
+	for _, path := range []string{root, filepath.Join(root, "app"),
+		filepath.Join(root, "app", "deploy.json"), filepath.Join(root, ".env")} {
+		info, err := os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok {
+			t.Fatalf("no stat for %s", path)
+		}
+		if stat.Uid != accounts.UID || stat.Gid != accounts.GID {
+			t.Errorf("%s is owned by %d:%d, want %d:%d",
+				path, stat.Uid, stat.Gid, accounts.UID, accounts.GID)
+		}
 	}
 }
 
