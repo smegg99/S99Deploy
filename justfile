@@ -63,7 +63,8 @@ check-cue:
     set -euo pipefail
     root="{{justfile_directory()}}"
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
+    # Also on a signal: a killed run used to leave the built cue behind.
+    trap 'rm -rf "$tmp"' EXIT INT TERM
     go build -o "$tmp/cue" cuelang.org/go/cmd/cue
     for dir in internal/manifest internal/site; do
         name="$(basename "$dir")"
