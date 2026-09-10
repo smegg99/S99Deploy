@@ -14,16 +14,15 @@ import (
 	"github.com/smegg99/s99deploy/internal/exit"
 )
 
-// siteOptions is the site's flag set and its streams.
+// siteOptions is the site's flag set and the stream its log goes to.
 type siteOptions struct {
 	configPath string
-	out        io.Writer
 	errOut     io.Writer
 }
 
 // Main is the process entrypoint: the same three exit codes the CLI uses.
 func Main(ctx context.Context, out, errOut io.Writer, args []string) int {
-	opts := &siteOptions{out: out, errOut: errOut}
+	opts := &siteOptions{errOut: errOut}
 	root := NewSiteRootCmd(opts)
 	root.SetOut(out)
 	root.SetErr(errOut)
