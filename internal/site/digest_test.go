@@ -38,6 +38,19 @@ func TestDigestFollowsTheFileOnDisk(t *testing.T) {
 	if want := sum(t, "second build"); second != want || size != 12 {
 		t.Errorf("digest = %s (%d bytes), want %s (12 bytes)", second, size, want)
 	}
+
+	// The same length as the write before it: the cache key is size and mtime,
+	// and a size-only key would keep serving the checksum above.
+	if err := os.WriteFile(path, []byte("second BUILD"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	third, size, err := bin.get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := sum(t, "second BUILD"); third != want || size != 12 {
+		t.Errorf("digest = %s (%d bytes), want %s (12 bytes)", third, size, want)
+	}
 }
 
 func TestDigestFailsForAMissingFile(t *testing.T) {
