@@ -137,3 +137,32 @@ func TestUninstallRefusesANameOutsideOpt(t *testing.T) {
 		}
 	}
 }
+
+// Root("/") is OptDir itself, so this name would purge every app on the box.
+func TestUninstallRefusesEveryNameThatIsNotOneElement(t *testing.T) {
+	for _, name := range []string{"/", "//", "a/b", "/etc", "myapp/", "./myapp", "", ".", "..", "-rf"} {
+		for _, purge := range []bool{false, true} {
+			cfg, _, accounts, units, _ := deploytest.NewConfig(t)
+			keep := installed(t, cfg, accounts, "keepme", filepath.Join(cfg.OptDir, "keepme"))
+			// A unit file the walk could find, so nothing but the guard stops it.
+			if err := os.WriteFile(filepath.Join(cfg.UnitDir, ".service"), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			err := deploy.New(cfg).Uninstall(context.Background(), name, purge)
+
+			if err == nil || !strings.Contains(err.Error(), "invalid service name") {
+				t.Errorf("uninstall %q (purge=%v) = %v, want it refused by name", name, purge, err)
+			}
+			if _, err := os.Stat(keep); err != nil {
+				t.Errorf("uninstall %q removed another app's tree: %v", name, err)
+			}
+			if _, err := os.Stat(cfg.OptDir); err != nil {
+				t.Errorf("uninstall %q removed %s: %v", name, cfg.OptDir, err)
+			}
+			if len(units.Disabled) != 0 || len(accounts.Deleted) != 0 {
+				t.Errorf("uninstall %q changed the host", name)
+			}
+		}
+	}
+}

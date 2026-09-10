@@ -18,7 +18,10 @@ func (d *Deployer) Uninstall(ctx context.Context, name string, purge bool) error
 	if err := d.requireRoot(); err != nil {
 		return err
 	}
-	if name == "" || name == "." || name == ".." || filepath.Base(name) != name || strings.HasPrefix(name, "-") {
+	// filepath.Base("/") is "/", so the Base check alone lets that one through,
+	// and Root("/") is OptDir itself: a --purge would take every app with it.
+	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) ||
+		filepath.Base(name) != name || strings.HasPrefix(name, "-") {
 		return fmt.Errorf("invalid service name %q", name)
 	}
 	unitPath := d.unitPath(name)
