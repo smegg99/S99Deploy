@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/joho/godotenv"
 	"github.com/smegg99/s99logger"
 
 	"github.com/smegg99/s99deploy/internal/manifest"
@@ -26,12 +25,8 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	}
 	root := d.Root(name)
 	appDir := filepath.Join(root, "app")
-	envPath := filepath.Join(root, ".env")
 	if _, err := os.Stat(filepath.Join(appDir, ".git")); err != nil {
 		return fmt.Errorf("no checkout at %s -- run `s99deploy install <git-url>` first", appDir)
-	}
-	if _, err := os.Stat(envPath); err != nil {
-		return fmt.Errorf("missing %s", envPath)
 	}
 
 	account, err := d.cfg.Accounts.Lookup(name)
@@ -64,9 +59,9 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 		timeout = time.Duration(m.Check.TimeoutSeconds) * time.Second
 	}
 
-	dotenv, err := godotenv.Read(envPath)
+	dotenv, err := readEnvFile(root)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", envPath, err)
+		return err
 	}
 	env := BuildEnv(os.Environ(), dotenv, m.Env)
 	if _, err := os.Stat(d.cfg.GoBinDir); err == nil {

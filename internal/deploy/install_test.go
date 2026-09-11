@@ -86,7 +86,7 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 	}
 	for _, want := range []string{
 		"User=myapp", "ExecStart=/usr/local/bin/s99deploy run " + root,
-		"ReadWritePaths=" + root, "EnvironmentFile=" + root + "/.env",
+		"ReadWritePaths=" + root + "/app", "EnvironmentFile=" + root + "/.env",
 	} {
 		if !strings.Contains(string(unit), want) {
 			t.Errorf("unit is missing %q:\n%s", want, unit)
@@ -103,21 +103,34 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 		t.Error("nothing cloned")
 	}
 
-	for _, path := range []string{root, filepath.Join(root, "app"),
-		filepath.Join(root, "app", "deploy.json"), filepath.Join(root, ".env")} {
-		info, err := os.Lstat(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
-		if !ok {
-			t.Fatalf("no stat for %s", path)
-		}
-		if stat.Uid != accounts.UID || stat.Gid != accounts.GID {
-			t.Errorf("%s is owned by %d:%d, want %d:%d",
+	// The account owns only the checkout it builds in.
+	for _, path := range []string{filepath.Join(root, "app"),
+		filepath.Join(root, "app", "deploy.json")} {
+		if stat := lstat(t, path); stat.Uid != accounts.UID || stat.Gid != accounts.GID {
+			t.Errorf("%s is owned by %d:%d, want the account %d:%d",
 				path, stat.Uid, stat.Gid, accounts.UID, accounts.GID)
 		}
 	}
+	// root and .env stay root's: here that is the test's own ids, not the account's.
+	for _, path := range []string{root, filepath.Join(root, ".env")} {
+		if stat := lstat(t, path); stat.Gid == accounts.GID {
+			t.Errorf("%s was handed to the account's group %d", path, accounts.GID)
+		}
+	}
+}
+
+// lstat returns the raw ownership of path, or fails the test.
+func lstat(t *testing.T, path string) *syscall.Stat_t {
+	t.Helper()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		t.Fatalf("no stat for %s", path)
+	}
+	return stat
 }
 
 // Install is safe to rerun: every step skips what already exists.
@@ -210,10 +223,8 @@ func TestInstallDoesNotShellOutForOwnership(t *testing.T) {
 	}
 }
 
-// The service account owns /opt/<name>, so it can put a link where .env goes.
+// A .env that is a link is refused, so root neither reads nor writes through it.
 func TestInstallRefusesAnEnvThatIsNotARegularFile(t *testing.T) {
-	// Chown and chmod through the link would hand the account a file it was
-	// never meant to own, anywhere on the box.
 	cfg, runner, _, _, _ := deploytest.NewConfig(t)
 	clones(t, runner, nil)
 	d := deploy.New(cfg)
@@ -243,5 +254,44 @@ func TestInstallRefusesAnEnvThatIsNotARegularFile(t *testing.T) {
 	}
 	if perm := info.Mode().Perm(); perm != 0o644 {
 		t.Errorf("the file the link pointed at is now %v, want 644", perm)
+	}
+}
+
+// A .env.example that is a fifo or a link out of the checkout must not be read.
+func TestInstallRefusesAHostileEnvExample(t *testing.T) {
+	secret := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(secret, []byte("STOLEN=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]func(checkout string) error{
+		"fifo": func(checkout string) error {
+			return syscall.Mkfifo(filepath.Join(checkout, ".env.example"), 0o644)
+		},
+		"link out of the checkout": func(checkout string) error {
+			return os.Symlink(secret, filepath.Join(checkout, ".env.example"))
+		},
+	}
+	for name, plant := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfg, runner, _, _, _ := deploytest.NewConfig(t)
+			runner.On["git clone"] = func(args []string) error {
+				checkout := args[len(args)-1]
+				if err := os.MkdirAll(filepath.Join(checkout, ".git"), 0o755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(checkout, "deploy.json"), []byte(manifestJSON), 0o644); err != nil {
+					return err
+				}
+				return plant(checkout)
+			}
+
+			if _, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git"); err == nil {
+				t.Fatal("a hostile .env.example was accepted")
+			}
+			env, err := os.ReadFile(filepath.Join(cfg.OptDir, "myapp", ".env"))
+			if err == nil && strings.Contains(string(env), "STOLEN") {
+				t.Errorf(".env carries the file the link pointed at: %q", env)
+			}
+		})
 	}
 }

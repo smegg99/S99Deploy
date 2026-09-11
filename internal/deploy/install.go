@@ -6,10 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/smegg99/s99logger"
 
 	"github.com/smegg99/s99deploy/internal/manifest"
@@ -61,10 +64,9 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err != nil {
 		return Installed{}, err
 	}
+	// root stays root-owned: only the checkout under it is the account's, and
+	// .env is root's, so the account can neither read the secrets nor swap them.
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		return Installed{}, err
-	}
-	if err := os.Chown(root, int(account.UID), int(account.GID)); err != nil {
 		return Installed{}, err
 	}
 	if err := os.Chmod(root, 0o755); err != nil {
@@ -82,7 +84,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		}
 	}
 
-	if err := d.seedEnv(root, appDir, int(account.UID), int(account.GID)); err != nil {
+	if err := d.seedEnv(root); err != nil {
 		return Installed{}, err
 	}
 
@@ -124,12 +126,14 @@ func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Accoun
 	return account, nil
 }
 
-// seedEnv creates /opt/<name>/.env on first install.
-func (d *Deployer) seedEnv(root, appDir string, uid, gid int) error {
-	// From .env.example when the app ships one, because both up and the unit's EnvironmentFile need the file to exist.
-	// The service account owns root, so it can put a symlink where .env goes.
-	// Every step below is taken through an os.Root, which refuses to follow one
-	// out of the directory, and refuses a .env that is not a regular file.
+// maxEnvExample caps the .env.example read, so a fifo or a device cannot hang install or exhaust it.
+const maxEnvExample = 1 << 20
+
+// seedEnv creates root-owned /opt/<name>/.env on first install; the account never opens it.
+func (d *Deployer) seedEnv(root string) error {
+	// The account owns the checkout, so both the example it is seeded from and
+	// .env itself are opened through an os.Root that cannot be followed out of
+	// the app root, and each is required to be a regular file with one link.
 	dir, err := os.OpenRoot(root)
 	if err != nil {
 		return err
@@ -141,13 +145,13 @@ func (d *Deployer) seedEnv(root, appDir string, uid, gid int) error {
 	case err == nil && !info.Mode().IsRegular():
 		return fmt.Errorf("%s is %s, not a regular file", envPath, info.Mode().Type())
 	case err == nil:
-		return lockDownEnv(dir, envPath, uid, gid)
+		return lockDownEnv(dir, envPath)
 	case !os.IsNotExist(err):
 		return err
 	}
 
-	example, err := os.ReadFile(filepath.Join(appDir, ".env.example"))
-	if err != nil && !os.IsNotExist(err) {
+	example, err := readEnvExample(dir)
+	if err != nil {
 		return err
 	}
 	file, err := dir.OpenFile(".env", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
@@ -162,14 +166,73 @@ func (d *Deployer) seedEnv(root, appDir string, uid, gid int) error {
 		return err
 	}
 	d.cfg.Log.Info(s99logger.NewEvent(EventCreatedEnv, s99logger.String("path", envPath)))
-	return lockDownEnv(dir, envPath, uid, gid)
+	return lockDownEnv(dir, envPath)
 }
 
-func lockDownEnv(dir *os.Root, envPath string, uid, gid int) error {
-	if err := dir.Lchown(".env", uid, gid); err != nil {
-		return fmt.Errorf("chown %s: %w", envPath, err)
+// readEnvExample reads app/.env.example through the app root, only when it is a regular file.
+func readEnvExample(dir *os.Root) ([]byte, error) {
+	// O_NONBLOCK so a fifo returns a descriptor instead of blocking; the fstat then rejects it.
+	file, err := dir.OpenFile("app/.env.example", os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if os.IsNotExist(err) {
+		return nil, nil
 	}
-	return dir.Chmod(".env", 0o600)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("app/.env.example is %s, not a regular file", info.Mode().Type())
+	}
+	return io.ReadAll(io.LimitReader(file, maxEnvExample))
+}
+
+// lockDownEnv makes .env a root-owned regular file with one link at 0600, through the app root.
+func lockDownEnv(dir *os.Root, envPath string) error {
+	file, err := dir.OpenFile(".env", os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", envPath, err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s is %s, not a regular file", envPath, info.Mode().Type())
+	}
+	if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink != 1 {
+		return fmt.Errorf("%s has %d hard links, want 1", envPath, st.Nlink)
+	}
+	return file.Chmod(0o600)
+}
+
+// readEnvFile reads /opt/<name>/.env through the app root, refusing a link or a multiply-linked file.
+func readEnvFile(root string) (map[string]string, error) {
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	file, err := dir.OpenFile(".env", os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s/.env is %s, not a regular file", root, info.Mode().Type())
+	}
+	if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink != 1 {
+		return nil, fmt.Errorf("%s/.env has %d hard links, want 1", root, st.Nlink)
+	}
+	return godotenv.Parse(file)
 }
 
 // sshURL matches the two spellings git treats as SSH.
