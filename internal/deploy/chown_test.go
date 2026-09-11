@@ -88,6 +88,62 @@ func TestChownTreeChangesLinksAndNotTargets(t *testing.T) {
 	}
 }
 
+// A directory that is really a symlink out of the tree is not descended into.
+func TestChownTreeDoesNotDescendIntoALinkedDirectory(t *testing.T) {
+	gid := altGID(t)
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "victim"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "app", "sub")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := chownTree(root, os.Getuid(), gid); err != nil {
+		t.Fatalf("chownTree: %v", err)
+	}
+
+	info, err := os.Lstat(filepath.Join(outside, "victim"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat := info.Sys().(*syscall.Stat_t); int(stat.Gid) == gid {
+		t.Error("chownTree followed the linked directory and chowned outside the tree")
+	}
+}
+
+// A root that is itself a symlink is chowned as a link, never followed into.
+func TestChownTreeDoesNotFollowASymlinkedRoot(t *testing.T) {
+	gid, ok := altGID(t)
+	if !ok {
+		t.Skip("no alternate group, so an escaped chown cannot be observed")
+	}
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "victim"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "app")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := chownTree(link, os.Getuid(), gid); err != nil {
+		t.Fatalf("chownTree: %v", err)
+	}
+
+	info, err := os.Lstat(filepath.Join(outside, "victim"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat := info.Sys().(*syscall.Stat_t); int(stat.Gid) == gid {
+		t.Error("chownTree followed the symlinked root and chowned outside it")
+	}
+}
+
 func TestChownTreeNamesTheFailingPath(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing")
 
