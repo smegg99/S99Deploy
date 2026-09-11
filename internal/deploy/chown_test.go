@@ -12,21 +12,37 @@ import (
 	"testing"
 )
 
-// altGID is a group this process may chown to that is not the one it has.
+// altGID probes for a group this process can chown to other than its own.
 // deploytest carries the same helper for the packages that can import it.
-func altGID(t *testing.T) int {
+func altGID(t *testing.T) (int, bool) {
 	t.Helper()
-	groups, err := os.Getgroups()
-	if err != nil {
+	probe := filepath.Join(t.TempDir(), "probe")
+	if err := os.WriteFile(probe, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, gid := range groups {
-		if gid != os.Getgid() {
-			return gid
+	self := os.Getgid()
+	seen := map[int]bool{self: true}
+	var candidates []int
+	if groups, err := os.Getgroups(); err == nil {
+		for _, gid := range groups {
+			if !seen[gid] {
+				seen[gid] = true
+				candidates = append(candidates, gid)
+			}
 		}
 	}
-	t.Skip("this account is in no group but its own, so a chown cannot be observed")
-	return 0
+	for _, gid := range []int{0, 1, self + 1} {
+		if !seen[gid] {
+			seen[gid] = true
+			candidates = append(candidates, gid)
+		}
+	}
+	for _, gid := range candidates {
+		if os.Lchown(probe, os.Getuid(), gid) == nil {
+			return gid, true
+		}
+	}
+	return 0, false
 }
 
 // A symlink in a fresh clone must not redirect the walk.
@@ -56,11 +72,21 @@ func TestChownTreeChangesLinksAndNotTargets(t *testing.T) {
 	if err := os.Chown(dangling, os.Getuid(), os.Getgid()); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("os.Chown on a dangling symlink = %v, want a not-exist error", err)
 	}
-	// A group this process may chown to but is not already in, so a walk that
+	// A group this process may chown to but is not running as, so a walk that
 	// set no ownership at all is visible.
-	gid := altGID(t)
+	gid, ok := altGID(t)
+	if !ok {
+		gid = os.Getgid()
+	}
 	if err := chownTree(root, os.Getuid(), gid); err != nil {
 		t.Fatalf("chownTree: %v", err)
+	}
+
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("the file the link pointed at was disturbed: %v", err)
+	}
+	if !ok {
+		return // without an alternate group the ownership read-back proves nothing
 	}
 
 	for _, path := range []string{root, filepath.Join(root, "app"),
@@ -75,9 +101,6 @@ func TestChownTreeChangesLinksAndNotTargets(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(outside); err != nil {
-		t.Errorf("the file the link pointed at was disturbed: %v", err)
-	}
 	// The link changed; what it points at did not.
 	target, err := os.Lstat(outside)
 	if err != nil {
@@ -90,7 +113,10 @@ func TestChownTreeChangesLinksAndNotTargets(t *testing.T) {
 
 // A directory that is really a symlink out of the tree is not descended into.
 func TestChownTreeDoesNotDescendIntoALinkedDirectory(t *testing.T) {
-	gid := altGID(t)
+	gid, ok := altGID(t)
+	if !ok {
+		t.Skip("no alternate group, so an escaped chown cannot be observed")
+	}
 	root := t.TempDir()
 	outside := t.TempDir()
 	if err := os.WriteFile(filepath.Join(outside, "victim"), []byte("x"), 0o644); err != nil {

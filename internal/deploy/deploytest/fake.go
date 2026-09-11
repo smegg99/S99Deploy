@@ -20,7 +20,6 @@ type Call struct {
 	Name    string
 	Args    []string
 	Env     []string
-	AsUser  string
 	As      deploy.AsUser
 	Command string
 }
@@ -60,7 +59,7 @@ func (r *Runner) Output(ctx context.Context, env []string, name string, args ...
 }
 
 func (r *Runner) RunAsUser(_ context.Context, a deploy.AsUser, command string, env []string) error {
-	r.Calls = append(r.Calls, Call{AsUser: a.Name, As: a, Command: command, Env: env})
+	r.Calls = append(r.Calls, Call{As: a, Command: command, Env: env})
 	if err := r.Fail[command]; err != nil {
 		return err
 	}
@@ -105,11 +104,10 @@ type Accounts struct {
 	UID, GID uint32
 }
 
-// NewAccounts gives created accounts this process's own ids.
+// NewAccounts gives created accounts this process's own ids, so the ownership
+// calls under test are syscalls an unprivileged test can make. Set GID to the
+// result of AltGID to tell a chown that ran from one that did not.
 func NewAccounts() *Accounts {
-	// Real ids, so the ownership calls under test are syscalls an unprivileged
-	// test can make. Set GID to AltGID to tell a chown that ran from one that
-	// did not.
 	return &Accounts{
 		Users: map[string]deploy.Account{},
 		UID:   uint32(os.Getuid()),
@@ -117,20 +115,47 @@ func NewAccounts() *Accounts {
 	}
 }
 
-// AltGID is a group this process may chown to that is not the one it already has.
-func AltGID(t *testing.T) uint32 {
+// AltGID returns a group this process can chown a file to, other than its own, and whether it found one.
+func AltGID(t *testing.T) (uint32, bool) {
 	t.Helper()
-	groups, err := os.Getgroups()
-	if err != nil {
+	if gid, ok := altGroup(t); ok {
+		return uint32(gid), true
+	}
+	return 0, false
+}
+
+// altGroup probes candidate groups with a real chown, so a group getgroups lists
+// but the kernel refuses (an unmapped id in a user namespace) is not chosen.
+func altGroup(t *testing.T) (int, bool) {
+	t.Helper()
+	probe := filepath.Join(t.TempDir(), "probe")
+	if err := os.WriteFile(probe, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, gid := range groups {
-		if gid != os.Getgid() {
-			return uint32(gid)
+	self := os.Getgid()
+	seen := map[int]bool{self: true}
+	var candidates []int
+	if groups, err := os.Getgroups(); err == nil {
+		for _, gid := range groups {
+			if !seen[gid] {
+				seen[gid] = true
+				candidates = append(candidates, gid)
+			}
 		}
 	}
-	t.Skip("this account is in no group but its own, so a chown cannot be observed")
-	return 0
+	// root may chown to any group, so offer a few that are not the current one.
+	for _, gid := range []int{0, 1, self + 1} {
+		if !seen[gid] {
+			seen[gid] = true
+			candidates = append(candidates, gid)
+		}
+	}
+	for _, gid := range candidates {
+		if os.Lchown(probe, os.Getuid(), gid) == nil {
+			return gid, true
+		}
+	}
+	return 0, false
 }
 
 func (a *Accounts) Lookup(name string) (deploy.Account, error) {

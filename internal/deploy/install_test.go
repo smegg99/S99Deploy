@@ -45,9 +45,13 @@ func clones(t *testing.T, runner *deploytest.Runner, extra map[string]string) {
 func TestInstallLaysOutTheApp(t *testing.T) {
 	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
 	clones(t, runner, map[string]string{".env.example": "TOKEN=\n"})
-	// A group this process is in but is not already running as, so every chown
-	// the install makes is something the test can read back.
-	accounts.GID = deploytest.AltGID(t)
+	// A group this process is in but is not already running as, so a chown the
+	// install makes is something the test can read back. When there is none the
+	// layout is still checked; only the ownership read-back is skipped.
+	altGID, hasAlt := deploytest.AltGID(t)
+	if hasAlt {
+		accounts.GID = altGID
+	}
 
 	installed, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
 	if err != nil {
@@ -103,6 +107,9 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 		t.Error("nothing cloned")
 	}
 
+	if !hasAlt {
+		return
+	}
 	// The account owns only the checkout it builds in.
 	for _, path := range []string{filepath.Join(root, "app"),
 		filepath.Join(root, "app", "deploy.json")} {

@@ -176,7 +176,7 @@ func TestUpRunsWithTheAccountsOwnHome(t *testing.T) {
 
 	var seen int
 	for _, call := range runner.Calls {
-		if call.AsUser == "" {
+		if call.As.Name == "" {
 			continue
 		}
 		seen++
