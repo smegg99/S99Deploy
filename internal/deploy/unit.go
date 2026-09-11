@@ -11,6 +11,9 @@ import (
 //go:embed unit.service.tmpl
 var unitSource string
 
+// unitMarker is in every unit this tool renders, so it can tell its own from a foreign one.
+const unitMarker = "(managed by s99deploy)"
+
 var unitTemplate = template.Must(template.New("unit").Parse(unitSource))
 
 // UnitParams is what the unit template needs.

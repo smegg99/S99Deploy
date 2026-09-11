@@ -211,6 +211,43 @@ func TestInstallRefusesToAdoptAForeignAccount(t *testing.T) {
 	}
 }
 
+// A repo whose manifest names an existing unit must not make root overwrite it.
+func TestInstallRefusesToOverwriteAForeignUnit(t *testing.T) {
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	foreign := filepath.Join(cfg.UnitDir, "myapp.service")
+	if err := os.WriteFile(foreign, []byte("[Service]\nExecStart=/usr/bin/sddm\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
+	if err == nil || !strings.Contains(err.Error(), "not written by s99deploy") {
+		t.Fatalf("err = %v, want the foreign unit refused", err)
+	}
+	if body, _ := os.ReadFile(foreign); !strings.Contains(string(body), "sddm") {
+		t.Errorf("the foreign unit was overwritten:\n%s", body)
+	}
+}
+
+// A manifest name that already resolves to a system unit is refused before any write.
+func TestInstallRefusesToShadowASystemUnit(t *testing.T) {
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	vendor := t.TempDir()
+	if err := os.WriteFile(filepath.Join(vendor, "myapp.service"), []byte("[Unit]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg.SystemUnitDirs = []string{vendor}
+
+	_, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
+	if err == nil || !strings.Contains(err.Error(), "already has a unit") {
+		t.Fatalf("err = %v, want the shadow refused", err)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.UnitDir, "myapp.service")); !os.IsNotExist(err) {
+		t.Error("a shadowing unit was written")
+	}
+}
+
 func TestInstallDoesNotShellOutForOwnership(t *testing.T) {
 	cfg, runner, _, _, _ := deploytest.NewConfig(t)
 	clones(t, runner, nil)

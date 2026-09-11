@@ -18,15 +18,17 @@ import (
 func LiveConfig() Config {
 	runner := &liveRunner{out: os.Stdout, errOut: os.Stderr}
 	return Config{
-		OptDir:   "/opt",
-		UnitDir:  "/etc/systemd/system",
-		GoBinDir: "/usr/local/go/bin",
-		SelfPath: "/usr/local/bin/s99deploy",
-		Euid:     os.Geteuid(),
-		Runner:   runner,
-		Accounts: liveAccounts{runner: runner},
-		Units:    liveUnits{runner: runner},
-		Prober:   liveProber{client: &http.Client{Timeout: 5 * time.Second}},
+		OptDir:  "/opt",
+		UnitDir: "/etc/systemd/system",
+		// The rest of systemd's search path, so a manifest name cannot claim a unit that lives here.
+		SystemUnitDirs: []string{"/run/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system"},
+		GoBinDir:       "/usr/local/go/bin",
+		SelfPath:       "/usr/local/bin/s99deploy",
+		Euid:           os.Geteuid(),
+		Runner:         runner,
+		Accounts:       liveAccounts{runner: runner},
+		Units:          liveUnits{runner: runner},
+		Prober:         liveProber{client: &http.Client{Timeout: 5 * time.Second}},
 	}
 }
 

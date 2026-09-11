@@ -28,6 +28,10 @@ func TestRenderUnit(t *testing.T) {
 	if strings.Contains(unit, "{{") || strings.Contains(unit, "<no value>") {
 		t.Errorf("unfilled placeholder in unit:\n%s", unit)
 	}
+	// The ownership check reads this marker back, so a rename of it must break here.
+	if !strings.Contains(unit, unitMarker) {
+		t.Errorf("unit does not carry %q:\n%s", unitMarker, unit)
+	}
 }
 
 // The resolver, journald, D-Bus and an S99AB work/daemon socket are all AF_UNIX.

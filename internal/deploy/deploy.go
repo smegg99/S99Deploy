@@ -17,13 +17,16 @@ type Config struct {
 	UnitDir  string
 	GoBinDir string
 	SelfPath string
-	Euid     int
-	Runner   Runner
-	Accounts Accounts
-	Units    Units
-	Prober   Prober
-	Progress Progress
-	Log      *s99logger.Logger
+	// SystemUnitDirs are the other places systemd finds units, checked so a new
+	// app cannot shadow one of them. Empty in tests, which own their UnitDir.
+	SystemUnitDirs []string
+	Euid           int
+	Runner         Runner
+	Accounts       Accounts
+	Units          Units
+	Prober         Prober
+	Progress       Progress
+	Log            *s99logger.Logger
 }
 
 // Deployer runs the flows against one Config.

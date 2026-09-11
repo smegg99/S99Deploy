@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -88,8 +89,18 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		return Installed{}, err
 	}
 
-	unit := RenderUnit(UnitParams{Name: m.Name, Root: root, SelfPath: d.cfg.SelfPath})
-	if err := os.WriteFile(d.unitPath(m.Name), []byte(unit), 0o644); err != nil {
+	// A manifest name that already owns a unit is refused, so a repo cannot make
+	// root overwrite a vendor or hand-written service, or shadow one it enables.
+	exists, err := d.ownedUnit(m.Name)
+	if err != nil {
+		return Installed{}, err
+	}
+	if !exists {
+		if err := d.refuseShadow(m.Name); err != nil {
+			return Installed{}, err
+		}
+	}
+	if err := d.writeUnit(m.Name, RenderUnit(UnitParams{Name: m.Name, Root: root, SelfPath: d.cfg.SelfPath})); err != nil {
 		return Installed{}, err
 	}
 	if err := d.cfg.Units.Reload(ctx); err != nil {
@@ -101,6 +112,52 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 
 	d.cfg.Log.Info(s99logger.NewEvent(EventInstalled, s99logger.String("app", m.Name)))
 	return Installed{Name: m.Name, Root: root}, nil
+}
+
+// ownedUnit reports whether name's unit exists and s99deploy wrote it, and refuses a foreign one.
+func (d *Deployer) ownedUnit(name string) (bool, error) {
+	path := d.unitPath(name)
+	info, err := os.Lstat(path)
+	switch {
+	case os.IsNotExist(err):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	if !info.Mode().IsRegular() {
+		return false, fmt.Errorf("%s is not a regular file; s99deploy will not touch it", path)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	if !strings.Contains(string(body), unitMarker) {
+		return false, fmt.Errorf("%s was not written by s99deploy; remove it by hand", path)
+	}
+	return true, nil
+}
+
+// refuseShadow rejects a name that already resolves to a unit elsewhere on the search path.
+func (d *Deployer) refuseShadow(name string) error {
+	for _, dir := range d.cfg.SystemUnitDirs {
+		if _, err := os.Lstat(filepath.Join(dir, name+".service")); err == nil {
+			return fmt.Errorf("%s already has a unit in %s; choose another app name", name, dir)
+		}
+	}
+	return nil
+}
+
+// writeUnit writes the rendered unit, refusing to follow a symlink in its place.
+func (d *Deployer) writeUnit(name, unit string) error {
+	file, err := os.OpenFile(d.unitPath(name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := file.WriteString(unit); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 // ensureAccount creates the service account, and refuses to adopt a foreign one.

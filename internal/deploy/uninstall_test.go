@@ -20,7 +20,8 @@ func installed(t *testing.T, cfg deploy.Config, accounts *deploytest.Accounts, n
 	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg.UnitDir, name+".service"), []byte("[Unit]\n"), 0o644); err != nil {
+	unit := deploy.RenderUnit(deploy.UnitParams{Name: name, Root: root, SelfPath: "/usr/local/bin/s99deploy"})
+	if err := os.WriteFile(filepath.Join(cfg.UnitDir, name+".service"), []byte(unit), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	accounts.Users[name] = deploy.Account{
@@ -28,6 +29,30 @@ func installed(t *testing.T, cfg deploy.Config, accounts *deploytest.Accounts, n
 		UID: uint32(os.Getuid()), GID: uint32(os.Getgid()),
 	}
 	return root
+}
+
+// A unit s99deploy did not write is left alone, even under --purge.
+func TestUninstallRefusesAUnitItDidNotWrite(t *testing.T) {
+	cfg, _, accounts, units, _ := deploytest.NewConfig(t)
+	root := installed(t, cfg, accounts, "myapp", filepath.Join(cfg.OptDir, "myapp"))
+	foreign := filepath.Join(cfg.UnitDir, "myapp.service")
+	if err := os.WriteFile(foreign, []byte("[Service]\nExecStart=/usr/bin/sddm\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := deploy.New(cfg).Uninstall(context.Background(), "myapp", true)
+	if err == nil || !strings.Contains(err.Error(), "not written by s99deploy") {
+		t.Fatalf("err = %v, want the foreign unit refused", err)
+	}
+	if len(units.Disabled) != 0 {
+		t.Errorf("disabled = %v, want nothing touched", units.Disabled)
+	}
+	if _, err := os.Stat(root); err != nil {
+		t.Errorf("the tree was removed: %v", err)
+	}
+	if _, err := os.Stat(foreign); err != nil {
+		t.Errorf("the foreign unit was removed: %v", err)
+	}
 }
 
 func TestPurgeRemovesTheTreeAndTheAccount(t *testing.T) {

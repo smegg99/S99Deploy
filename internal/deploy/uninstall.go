@@ -24,8 +24,14 @@ func (d *Deployer) Uninstall(ctx context.Context, name string, purge bool) error
 		filepath.Base(name) != name || strings.HasPrefix(name, "-") {
 		return fmt.Errorf("invalid service name %q", name)
 	}
+	// Only a unit s99deploy wrote is disabled and removed, so a mask, an alias
+	// or a hand-written service that happens to share the name is left alone.
 	unitPath := d.unitPath(name)
-	if _, err := os.Stat(unitPath); err != nil {
+	exists, err := d.ownedUnit(name)
+	if err != nil {
+		return err
+	}
+	if !exists {
 		return fmt.Errorf("no unit at %s: is %s installed?", unitPath, name)
 	}
 
