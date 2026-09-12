@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // The digest follows the file.
@@ -39,9 +40,18 @@ func TestDigestFollowsTheFileOnDisk(t *testing.T) {
 		t.Errorf("digest = %s (%d bytes), want %s (12 bytes)", second, size, want)
 	}
 
-	// The same length as the write before it: the cache key is size and mtime,
-	// and a size-only key would keep serving the checksum above.
+	// Same length as the write before it, with the mtime forced distinct so the
+	// key changes even if the two writes shared a coarse filesystem tick: a
+	// size-only key would keep serving the checksum above.
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte("second BUILD"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	distinct := before.ModTime().Add(time.Hour)
+	if err := os.Chtimes(path, distinct, distinct); err != nil {
 		t.Fatal(err)
 	}
 	third, size, err := bin.get()

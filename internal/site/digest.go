@@ -21,7 +21,7 @@ type binDigest struct {
 	sum   string
 }
 
-// get returns the digest and size of the file, rehashing it when it changed.
+// get returns the digest and size of the file, rehashing it when size or mtime changed.
 func (b *binDigest) get() (string, int64, error) {
 	info, err := os.Stat(b.path)
 	if err != nil {
