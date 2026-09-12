@@ -75,8 +75,8 @@ func (r *liveRunner) asUser(ctx context.Context, a AsUser, command string, env [
 	cmd := exec.CommandContext(ctx, "bash", "-lc", command)
 	cmd.Dir = a.Dir
 	cmd.Env = asUserEnv(a, env)
-	// Stdin is nil: no build step reads the terminal, and the group groupCancel
-	// puts this in is not the foreground one, where a read would stop it.
+	// Stdin is nil: a build must not read the terminal. In the background group
+	// groupCancel puts this in, a terminal read would be stopped by SIGTTIN anyway.
 	cmd.Stdin = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: a.UID, Gid: a.GID, Groups: a.Groups},
@@ -110,7 +110,7 @@ func cause(ctx context.Context, err error) error {
 // groupCancel makes a cancelled context reach every process in cmd's group.
 func groupCancel(cmd *exec.Cmd, grace time.Duration) (disarm func()) {
 	var mu sync.Mutex
-	var kill *time.Timer
+	var cancelled bool
 
 	// The kill below names a group, so arming is what creates one. Leaving this
 	// to the caller is how kill(-pid) ends up naming a group nobody is in.
@@ -119,9 +119,7 @@ func groupCancel(cmd *exec.Cmd, grace time.Duration) (disarm func()) {
 	}
 	cmd.SysProcAttr.Setpgid = true
 
-	// os/exec signals the direct child only, and WaitDelay kills only that child
-	// too, so the escalation is explicit. The returned function disarms the kill
-	// timer and must run after Wait.
+	// os/exec signals the direct child only, so the group gets its own SIGTERM.
 	cmd.Cancel = func() error {
 		pgid := cmd.Process.Pid
 		if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
@@ -132,21 +130,34 @@ func groupCancel(cmd *exec.Cmd, grace time.Duration) (disarm func()) {
 			}
 			return err
 		}
-
 		mu.Lock()
-		defer mu.Unlock()
-		kill = time.AfterFunc(grace, func() { _ = syscall.Kill(-pgid, syscall.SIGKILL) })
+		cancelled = true
+		mu.Unlock()
 		return nil
 	}
-	// WaitDelay bounds the pipe teardown only. The group is handled above.
+	// WaitDelay force-kills the direct child if it outlives the cancel; the rest
+	// of the group is disarm's job below.
 	cmd.WaitDelay = grace + time.Second
 
+	// disarm runs after Wait. The leader has exited, but a grandchild that
+	// ignored SIGTERM outlives it, so a cancelled run waits out the grace and
+	// then SIGKILLs whatever is left of the group.
 	return func() {
 		mu.Lock()
-		defer mu.Unlock()
-		if kill != nil {
-			kill.Stop()
+		fired := cancelled
+		mu.Unlock()
+		if !fired {
+			return
 		}
+		pgid := cmd.Process.Pid
+		deadline := time.Now().Add(grace)
+		for time.Now().Before(deadline) {
+			if err := syscall.Kill(-pgid, 0); errors.Is(err, syscall.ESRCH) {
+				return
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
 	}
 }
 

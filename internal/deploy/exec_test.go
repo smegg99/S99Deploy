@@ -118,6 +118,37 @@ func TestGroupCancelReachesAGrandchild(t *testing.T) {
 	t.Fatalf("grandchild %d survived the cancel", pid)
 }
 
+// A grandchild that ignores SIGTERM is still killed once the grace runs out.
+func TestGroupCancelEscalatesToSIGKILL(t *testing.T) {
+	// The subshell ignores TERM and execs sleep, which keeps the ignore across
+	// execve, so only the SIGKILL from disarm ends it.
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "bash", "-lc",
+		"( trap '' TERM; exec sleep 60 ) & echo $! > "+pidFile+"; wait")
+	disarm := groupCancel(cmd, 300*time.Millisecond)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	pid := waitForPID(t, pidFile)
+	cancel()
+	_ = cmd.Wait()
+	disarm()
+
+	// disarm has sent SIGKILL by the time it returns; init then reaps the zombie.
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("the TERM-ignoring grandchild %d survived the cancel", pid)
+}
+
 // waitForPID reads the pid the shell wrote, once it has written it.
 func waitForPID(t *testing.T, path string) int {
 	t.Helper()
