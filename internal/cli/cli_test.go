@@ -109,6 +109,20 @@ func TestUninstallPromptAndYes(t *testing.T) {
 	}
 }
 
+// A bad name is refused before the prompt, so the warning never names /opt itself.
+func TestUninstallRefusesABadNameBeforePrompting(t *testing.T) {
+	opts, stdout, stderr := testOptions(t, "")
+	if code := run(context.Background(), opts, []string{"uninstall", "--purge", "../x"}); code != 1 {
+		t.Errorf("code = %d, want 1", code)
+	}
+	if strings.Contains(stdout.String(), "Type") {
+		t.Error("the prompt ran for an invalid name")
+	}
+	if !strings.Contains(stderr.String(), "invalid service name") {
+		t.Errorf("stderr = %q, want the name refused", stderr)
+	}
+}
+
 // An interrupted run says one thing and exits 1.
 func TestInterruptedRun(t *testing.T) {
 	opts, _, stderr := testOptions(t, "")

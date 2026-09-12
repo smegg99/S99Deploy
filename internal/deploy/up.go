@@ -20,6 +20,9 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	if err := d.requireRoot(); err != nil {
 		return err
 	}
+	if err := ValidateName(name); err != nil {
+		return err
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

@@ -7,9 +7,21 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"regexp"
 
 	"github.com/smegg99/s99logger"
 )
+
+// namePattern is the manifest's own name rule: the unit, the account and /opt/<name>.
+var namePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+// ValidateName rejects a service name the manifest would not accept, before it reaches a path.
+func ValidateName(name string) error {
+	if !namePattern.MatchString(name) {
+		return fmt.Errorf("invalid service name %q", name)
+	}
+	return nil
+}
 
 // Config is where things live and who does the privileged work.
 type Config struct {

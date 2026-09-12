@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/smegg99/s99logger"
 )
@@ -18,11 +17,10 @@ func (d *Deployer) Uninstall(ctx context.Context, name string, purge bool) error
 	if err := d.requireRoot(); err != nil {
 		return err
 	}
-	// filepath.Base("/") is "/", so the Base check alone lets that one through,
-	// and Root("/") is OptDir itself: a --purge would take every app with it.
-	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) ||
-		filepath.Base(name) != name || strings.HasPrefix(name, "-") {
-		return fmt.Errorf("invalid service name %q", name)
+	// The manifest name rule rejects a separator, a dot, a leading dash and an
+	// empty name in one place, so Root(name) and the unit path stay inside /opt.
+	if err := ValidateName(name); err != nil {
+		return err
 	}
 	// Only a unit s99deploy wrote is disabled and removed, so a mask, an alias
 	// or a hand-written service that happens to share the name is left alone.

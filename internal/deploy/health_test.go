@@ -156,6 +156,19 @@ func TestUpDoesNotRestartAfterACancelledBuild(t *testing.T) {
 	}
 }
 
+// A name that is not manifest-shaped is refused before Up touches a path.
+func TestUpRefusesABadName(t *testing.T) {
+	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	for _, name := range []string{"../x", "/", "-x", "", "a/b"} {
+		if err := deploy.New(cfg).Up(context.Background(), name, time.Second); err == nil {
+			t.Errorf("Up(%q) was allowed", name)
+		}
+	}
+	if len(runner.Calls) != 0 {
+		t.Errorf("a bad name still ran %v", runner.Calls)
+	}
+}
+
 // git reads .gitconfig and .ssh from HOME, which is the account's, not /opt/<name>.
 func TestUpRunsWithTheAccountsOwnHome(t *testing.T) {
 	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
