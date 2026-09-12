@@ -304,7 +304,8 @@ func requireAgent(gitURL string) error {
 	sock := os.Getenv("SSH_AUTH_SOCK")
 	if sock == "" {
 		return fmt.Errorf(
-			"%s needs SSH and SSH_AUTH_SOCK is unset (sudo drops it). Rerun as:\n"+
+			"%s needs SSH but no agent is reachable (SSH_AUTH_SOCK is unset). Start one\n"+
+				"and load a key with `ssh-add`, then keep it across sudo:\n"+
 				"  sudo --preserve-env=SSH_AUTH_SOCK s99deploy install %s", gitURL, gitURL)
 	}
 

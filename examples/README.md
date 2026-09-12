@@ -15,7 +15,7 @@ One-time setup on the VPS (clones the repo, creates the `myapp` user and
 `/opt/myapp`, installs the systemd unit):
 
 ```sh
-sudo s99deploy install git@github.com:smegg99/MyApp.git
+sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/MyApp.git
 sudo nano /opt/myapp/.env    # fill in secrets
 sudo s99deploy up myapp
 ```

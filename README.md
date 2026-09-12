@@ -104,14 +104,14 @@ Ready-made manifests and a full lifecycle walkthrough live in
 ## Deploying an app
 
 ```sh
-sudo s99deploy install git@github.com:smegg99/SmeggTunerSite.git
+sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/SmeggTunerSite.git
 sudo nano /opt/smeggtunersite/.env      # fill in secrets
 sudo s99deploy up smeggtunersite
 ```
 
-For private repos the initial clone runs as root, so SSH agent forwarding is
-enough; later pulls run as the service user, which needs its own read-only
-deploy key in `/opt/<name>/.ssh`.
+For private repos the initial clone runs as root, so `sudo` must keep your
+agent with `--preserve-env=SSH_AUTH_SOCK`; later pulls run as the service user,
+which needs its own read-only deploy key in `/opt/<name>/.ssh`.
 
 Status and logs:
 
@@ -147,7 +147,7 @@ The repo carries its own [`deploy.json`](deploy.json), so the site is
 deployed with the tool it hosts:
 
 ```sh
-sudo s99deploy install git@github.com:smegg99/S99Deploy.git
+sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/S99Deploy.git
 sudo s99deploy up s99deploy-site
 ```
 
