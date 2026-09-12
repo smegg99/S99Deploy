@@ -7,12 +7,12 @@ const usageText = `s99deploy %[2]s -- deploy manifest-carrying apps to /opt unde
 
 Install on a Linux x86-64 VPS:
 
-  curl -fsSL %[1]s/install.sh | sudo sh
+  curl -fsSL "%[1]s/install.sh" | sudo sh
 
 Or by hand, checking the download yourself:
 
-  curl -fsSL %[1]s/s99deploy -o s99deploy
-  curl -fsSL %[1]s/s99deploy.sha256 | sha256sum -c -
+  curl -fsSL "%[1]s/s99deploy" -o s99deploy
+  curl -fsSL "%[1]s/s99deploy.sha256" | sha256sum -c -
   sudo install -m 0755 s99deploy /usr/local/bin/s99deploy
 
 Docs: https://github.com/smegg99/S99Deploy

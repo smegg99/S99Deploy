@@ -21,8 +21,11 @@ func newProxySet(entries []string) (proxySet, error) {
 	set := proxySet{prefixes: make([]netip.Prefix, 0, len(entries))}
 	for _, entry := range entries {
 		if prefix, err := netip.ParsePrefix(entry); err == nil {
+			if prefix.Addr().Zone() != "" {
+				return proxySet{}, zonedEntry(entry)
+			}
 			if prefix.Addr().Is4In6() {
-				return proxySet{}, mappedEntry(entry, prefix.Addr())
+				return proxySet{}, mappedEntry(entry, prefix, true)
 			}
 			set.prefixes = append(set.prefixes, prefix.Masked())
 			continue
@@ -32,17 +35,33 @@ func newProxySet(entries []string) (proxySet, error) {
 		if err != nil {
 			return proxySet{}, fmt.Errorf("trusted_proxies: %q is neither an address nor a CIDR block", entry)
 		}
+		if addr.Zone() != "" {
+			return proxySet{}, zonedEntry(entry)
+		}
 		if addr.Is4In6() {
-			return proxySet{}, mappedEntry(entry, addr)
+			return proxySet{}, mappedEntry(entry, netip.PrefixFrom(addr, addr.BitLen()), false)
 		}
 		set.prefixes = append(set.prefixes, netip.PrefixFrom(addr, addr.BitLen()))
 	}
 	return set, nil
 }
 
-// mappedEntry names the plain spelling of an IPv4-mapped IPv6 entry.
-func mappedEntry(entry string, addr netip.Addr) error {
-	return fmt.Errorf("trusted_proxies: %q is an IPv4 address written as IPv6; write it as %s", entry, addr.Unmap())
+// mappedEntry refuses an IPv4-mapped IPv6 entry and names the plain spelling to use.
+func mappedEntry(entry string, prefix netip.Prefix, wasPrefix bool) error {
+	plain := prefix.Addr().Unmap()
+	switch {
+	case !wasPrefix:
+		return fmt.Errorf("trusted_proxies: %q is an IPv4 address written as IPv6; write it as %s", entry, plain)
+	case prefix.Bits() >= 96:
+		return fmt.Errorf("trusted_proxies: %q is an IPv4 block written as IPv6; write it as %s/%d", entry, plain, prefix.Bits()-96)
+	default:
+		return fmt.Errorf("trusted_proxies: %q spans the IPv4-mapped range; write it as a plain IPv4 address or CIDR", entry)
+	}
+}
+
+// zonedEntry refuses an address carrying an IPv6 zone id, which gin cannot parse.
+func zonedEntry(entry string) error {
+	return fmt.Errorf("trusted_proxies: %q carries a zone id; write the address without it", entry)
 }
 
 // has reports whether ip is one of the peers this site believes.
@@ -82,8 +101,7 @@ func (s *Server) baseURL(c *gin.Context) (string, bool) {
 	return scheme + "://" + host, true
 }
 
-// hostName is the host a served command may quote, and nothing else.
-// net/http lets $ ( ) ' and ; through, and the install script is read by root.
+// hostName is the host a served command may quote: net/http lets $ ( ) ' ; through, and root runs the script.
 var hostName = regexp.MustCompile(`^([A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+])(:[0-9]{1,5})?$`)
 
 // forwardedScheme takes the first value of a comma-joined header, http or https.

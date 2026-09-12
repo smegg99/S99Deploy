@@ -115,20 +115,30 @@ func TestBaseURLBelievesOnlyATrustedPeer(t *testing.T) {
 	}
 }
 
-// gin reads an IPv4-mapped entry as a 128-bit prefix; this site unmaps it.
+// gin reads a plain mapped address as ::/32; this site refuses every mapped spelling.
 func TestProxySetRefusesAMappedAddressConfiguration(t *testing.T) {
 	// One field feeds both, so an entry the two read differently is a config
-	// error, not something for one of them to quietly reinterpret.
-	for _, c := range []struct{ entry, plain string }{
-		{entry: "::ffff:10.4.2.1", plain: "10.4.2.1"},
-		{entry: "::ffff:10.0.0.0/104", plain: "10.0.0.0"},
+	// error, not something for one of them to quietly reinterpret. The refusal
+	// names the plain spelling in full, prefix length included.
+	for _, c := range []struct{ entry, want string }{
+		{entry: "::ffff:10.4.2.1", want: "10.4.2.1"},
+		{entry: "::ffff:10.0.0.0/104", want: "10.0.0.0/8"},
 	} {
 		_, err := newProxySet([]string{c.entry})
 		if err == nil {
 			t.Fatalf("%s was accepted", c.entry)
 		}
-		if !strings.Contains(err.Error(), c.plain) {
-			t.Errorf("err = %v, want it to name %s", err, c.plain)
+		if !strings.Contains(err.Error(), c.want) {
+			t.Errorf("err = %v, want it to name %s", err, c.want)
+		}
+	}
+}
+
+// An IPv6 zone id is refused, because gin cannot parse one and would disagree.
+func TestProxySetRefusesAZonedEntry(t *testing.T) {
+	for _, entry := range []string{"fe80::1%eth0", "fe80::%eth0/64"} {
+		if _, err := newProxySet([]string{entry}); err == nil {
+			t.Errorf("%s was accepted", entry)
 		}
 	}
 }

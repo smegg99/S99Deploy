@@ -37,6 +37,10 @@ func New(cfg *Config, version string) (*Server, error) {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	// A trailing-slash 301 is served before any handler and reflects the request
+	// path, which curl | sh would then run, so it is turned off; the site has no
+	// route that needs it.
+	router.RedirectTrailingSlash = false
 	// gin's ClientIP and this site's scheme check are configured from one field
 	// and parse it apart. newProxySet has already refused every entry the two
 	// would read differently, so what reaches gin here it reads the same way.

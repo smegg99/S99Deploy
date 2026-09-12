@@ -75,7 +75,7 @@ func TestUsageTextPointsAtTheInstallScript(t *testing.T) {
 	router, _ := serving(t, "ELFBYTES")
 
 	body := fetch(t, router, "/").Body.String()
-	if !strings.Contains(body, "curl -fsSL https://get.example.com/install.sh | sudo sh") {
+	if !strings.Contains(body, `curl -fsSL "https://get.example.com/install.sh" | sudo sh`) {
 		t.Errorf("usage is missing the install one-liner:\n%s", body)
 	}
 	if !strings.Contains(body, "1.0.0") {
