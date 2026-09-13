@@ -12,7 +12,8 @@ Group={{.Name}}
 WorkingDirectory={{.Root}}/app
 ExecStart={{.SelfPath}} run {{.Root}}
 
-# Secrets live outside the checkout so a git operation can never touch them.
+# Secrets are root-owned, outside the checkout, so the account cannot read or
+# replace them and a git operation can never touch them.
 EnvironmentFile={{.Root}}/.env
 
 Restart=on-failure
@@ -35,8 +36,9 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 
 # Under ProtectSystem=strict systemd refuses to start if a ReadWritePaths entry
-# is missing. The whole root always exists, so a fresh clone still starts.
-ReadWritePaths={{.Root}}
+# is missing. The account writes only the checkout, which exists after a fresh
+# clone, so the root that holds .env stays read-only to the service.
+ReadWritePaths={{.Root}}/app
 
 [Install]
 WantedBy=multi-user.target

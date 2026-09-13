@@ -90,7 +90,7 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 	}
 	for _, want := range []string{
 		"User=myapp", "ExecStart=/usr/local/bin/s99deploy run " + root,
-		"ReadWritePaths=" + root, "EnvironmentFile=" + root + "/.env",
+		"ReadWritePaths=" + root + "/app", "EnvironmentFile=" + root + "/.env",
 	} {
 		if !strings.Contains(string(unit), want) {
 			t.Errorf("unit is missing %q:\n%s", want, unit)
@@ -110,12 +110,19 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 	if !hasAlt {
 		return
 	}
-	// The account owns its whole tree: the root, the checkout and the env file.
-	for _, path := range []string{root, filepath.Join(root, "app"),
-		filepath.Join(root, "app", "deploy.json"), filepath.Join(root, ".env")} {
+	// The account owns only the checkout it builds in.
+	for _, path := range []string{filepath.Join(root, "app"),
+		filepath.Join(root, "app", "deploy.json")} {
 		if stat := lstat(t, path); stat.Uid != accounts.UID || stat.Gid != accounts.GID {
 			t.Errorf("%s is owned by %d:%d, want the account %d:%d",
 				path, stat.Uid, stat.Gid, accounts.UID, accounts.GID)
+		}
+	}
+	// root and .env stay root's, so the account cannot swap the secrets: here
+	// that is the test's own ids, not the account's alternate group.
+	for _, path := range []string{root, filepath.Join(root, ".env")} {
+		if stat := lstat(t, path); stat.Gid == accounts.GID {
+			t.Errorf("%s was handed to the account's group %d", path, accounts.GID)
 		}
 	}
 }

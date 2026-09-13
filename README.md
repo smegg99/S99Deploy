@@ -111,7 +111,11 @@ sudo s99deploy up smeggtunersite
 
 For private repos the initial clone runs as root, so `sudo` must keep your
 agent with `--preserve-env=SSH_AUTH_SOCK`; later pulls run as the service user,
-which needs its own read-only deploy key in `/opt/<name>/.ssh`.
+which needs its own read-only deploy key in `/opt/<name>/.ssh`. `/opt/<name>`
+and its `.env` are root-owned so the service cannot read or replace the
+secrets, so create that `.ssh` yourself and give it to the service account
+(`install -d -o <name> -g <name> -m 0700 /opt/<name>/.ssh`). The service writes
+only under `/opt/<name>/app`.
 
 Status and logs:
 

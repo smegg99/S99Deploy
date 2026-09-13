@@ -169,7 +169,12 @@ func (a *Accounts) Lookup(name string) (deploy.Account, error) {
 func (a *Accounts) Create(_ context.Context, name, home string) error {
 	a.Created = append(a.Created, name)
 	a.Users[name] = deploy.Account{Name: name, Home: home, UID: a.UID, GID: a.GID}
-	return nil
+	// useradd --create-home makes the home directory owned by the new account,
+	// so the install has to reclaim it; mirror that here to keep the test honest.
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		return err
+	}
+	return os.Lchown(home, int(a.UID), int(a.GID))
 }
 
 func (a *Accounts) Delete(_ context.Context, name string) error {
