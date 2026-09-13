@@ -21,9 +21,7 @@ func newProxySet(entries []string) (proxySet, error) {
 	set := proxySet{prefixes: make([]netip.Prefix, 0, len(entries))}
 	for _, entry := range entries {
 		if prefix, err := netip.ParsePrefix(entry); err == nil {
-			if prefix.Addr().Zone() != "" {
-				return proxySet{}, zonedEntry(entry)
-			}
+			// ParsePrefix rejects a zone itself, so only the address branch checks for one.
 			if prefix.Addr().Is4In6() {
 				return proxySet{}, mappedEntry(entry, prefix, true)
 			}
