@@ -232,7 +232,7 @@ func TestInstallRefusesToOverwriteAForeignUnit(t *testing.T) {
 
 // A manifest name that already resolves to a system unit is refused before any write.
 func TestInstallRefusesToShadowASystemUnit(t *testing.T) {
-	cfg, runner, _, _, _ := deploytest.NewConfig(t)
+	cfg, runner, accounts, _, _ := deploytest.NewConfig(t)
 	clones(t, runner, nil)
 	vendor := t.TempDir()
 	if err := os.WriteFile(filepath.Join(vendor, "myapp.service"), []byte("[Unit]\n"), 0o644); err != nil {
@@ -246,6 +246,13 @@ func TestInstallRefusesToShadowASystemUnit(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(cfg.UnitDir, "myapp.service")); !os.IsNotExist(err) {
 		t.Error("a shadowing unit was written")
+	}
+	// Refused before anything was created, so there is no orphan to clean up.
+	if len(accounts.Created) != 0 {
+		t.Errorf("Created = %v, want nothing", accounts.Created)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.OptDir, "myapp")); !os.IsNotExist(err) {
+		t.Error("a tree was laid out for a refused name")
 	}
 }
 

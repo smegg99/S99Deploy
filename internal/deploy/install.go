@@ -61,6 +61,18 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	root := d.Root(m.Name)
 	appDir := filepath.Join(root, "app")
 
+	// The unit name is decided before anything is created, so a name that
+	// collides with a foreign or a system unit leaves no account or tree behind.
+	unitExists, err := d.ownedUnit(m.Name)
+	if err != nil {
+		return Installed{}, err
+	}
+	if !unitExists {
+		if err := d.refuseShadow(m.Name); err != nil {
+			return Installed{}, err
+		}
+	}
+
 	account, err := d.ensureAccount(ctx, m.Name, root)
 	if err != nil {
 		return Installed{}, err
@@ -92,17 +104,6 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		return Installed{}, err
 	}
 
-	// A manifest name that already owns a unit is refused, so a repo cannot make
-	// root overwrite a vendor or hand-written service, or shadow one it enables.
-	exists, err := d.ownedUnit(m.Name)
-	if err != nil {
-		return Installed{}, err
-	}
-	if !exists {
-		if err := d.refuseShadow(m.Name); err != nil {
-			return Installed{}, err
-		}
-	}
 	if err := d.writeUnit(m.Name, RenderUnit(UnitParams{Name: m.Name, Root: root, SelfPath: d.cfg.SelfPath})); err != nil {
 		return Installed{}, err
 	}
