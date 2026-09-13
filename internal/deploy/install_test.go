@@ -315,6 +315,13 @@ func TestInstallRefusesAHostileEnvExample(t *testing.T) {
 		"link out of the checkout": func(checkout string) error {
 			return os.Symlink(secret, filepath.Join(checkout, ".env.example"))
 		},
+		"hard link in the checkout": func(checkout string) error {
+			target := filepath.Join(checkout, "other")
+			if err := os.WriteFile(target, []byte("STOLEN=1\n"), 0o644); err != nil {
+				return err
+			}
+			return os.Link(target, filepath.Join(checkout, ".env.example"))
+		},
 	}
 	for name, plant := range cases {
 		t.Run(name, func(t *testing.T) {

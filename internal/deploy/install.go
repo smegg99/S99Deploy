@@ -211,7 +211,7 @@ func (d *Deployer) seedEnv(root string, uid, gid int) error {
 		return err
 	}
 
-	example, err := readEnvExample(dir)
+	example, err := readEnvExample(dir, root)
 	if err != nil {
 		return err
 	}
@@ -230,15 +230,15 @@ func (d *Deployer) seedEnv(root string, uid, gid int) error {
 	return lockDownEnv(dir, envPath, uid, gid)
 }
 
-// readEnvExample reads app/.env.example through the app root, only when it is a regular file.
-func readEnvExample(dir *os.Root) ([]byte, error) {
+// readEnvExample reads app/.env.example through the app root, only when it is a regular file with one link.
+func readEnvExample(dir *os.Root, root string) ([]byte, error) {
 	// O_NONBLOCK so a fifo returns a descriptor instead of blocking; the fstat then rejects it.
 	file, err := dir.OpenFile("app/.env.example", os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open %s/app/.env.example: %w", root, err)
 	}
 	defer file.Close()
 	info, err := file.Stat()
@@ -246,7 +246,10 @@ func readEnvExample(dir *os.Root) ([]byte, error) {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("app/.env.example is %s, not a regular file", info.Mode().Type())
+		return nil, fmt.Errorf("%s/app/.env.example is %s, not a regular file", root, info.Mode().Type())
+	}
+	if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink != 1 {
+		return nil, fmt.Errorf("%s/app/.env.example has %d hard links, want 1", root, st.Nlink)
 	}
 	return io.ReadAll(io.LimitReader(file, maxEnvExample))
 }
