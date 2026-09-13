@@ -65,9 +65,12 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err != nil {
 		return Installed{}, err
 	}
-	// root stays root-owned: only the checkout under it is the account's, and
-	// .env is root's, so the account can neither read the secrets nor swap them.
+	// useradd --create-home already made root, so this reclaims a rerun's mode
+	// and takes it back from an account created by hand.
 	if err := os.MkdirAll(root, 0o755); err != nil {
+		return Installed{}, err
+	}
+	if err := os.Chown(root, int(account.UID), int(account.GID)); err != nil {
 		return Installed{}, err
 	}
 	if err := os.Chmod(root, 0o755); err != nil {
@@ -85,7 +88,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		}
 	}
 
-	if err := d.seedEnv(root); err != nil {
+	if err := d.seedEnv(root, int(account.UID), int(account.GID)); err != nil {
 		return Installed{}, err
 	}
 
@@ -186,8 +189,8 @@ func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Accoun
 // maxEnvExample caps the .env.example read, so a fifo or a device cannot hang install or exhaust it.
 const maxEnvExample = 1 << 20
 
-// seedEnv creates root-owned /opt/<name>/.env on first install; the account never opens it.
-func (d *Deployer) seedEnv(root string) error {
+// seedEnv creates /opt/<name>/.env on first install, owned by the account at 0600.
+func (d *Deployer) seedEnv(root string, uid, gid int) error {
 	// The account owns the checkout, so both the example it is seeded from and
 	// .env itself are opened through an os.Root that cannot be followed out of
 	// the app root, and each is required to be a regular file with one link.
@@ -202,7 +205,7 @@ func (d *Deployer) seedEnv(root string) error {
 	case err == nil && !info.Mode().IsRegular():
 		return fmt.Errorf("%s is %s, not a regular file", envPath, info.Mode().Type())
 	case err == nil:
-		return lockDownEnv(dir, envPath)
+		return lockDownEnv(dir, envPath, uid, gid)
 	case !os.IsNotExist(err):
 		return err
 	}
@@ -223,7 +226,7 @@ func (d *Deployer) seedEnv(root string) error {
 		return err
 	}
 	d.cfg.Log.Info(s99logger.NewEvent(EventCreatedEnv, s99logger.String("path", envPath)))
-	return lockDownEnv(dir, envPath)
+	return lockDownEnv(dir, envPath, uid, gid)
 }
 
 // readEnvExample reads app/.env.example through the app root, only when it is a regular file.
@@ -247,8 +250,8 @@ func readEnvExample(dir *os.Root) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(file, maxEnvExample))
 }
 
-// lockDownEnv makes .env a root-owned regular file with one link at 0600, through the app root.
-func lockDownEnv(dir *os.Root, envPath string) error {
+// lockDownEnv gives .env to the account at 0600, refusing a link or a multiply-linked file.
+func lockDownEnv(dir *os.Root, envPath string, uid, gid int) error {
 	file, err := dir.OpenFile(".env", os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", envPath, err)
@@ -264,6 +267,9 @@ func lockDownEnv(dir *os.Root, envPath string) error {
 	if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink != 1 {
 		return fmt.Errorf("%s has %d hard links, want 1", envPath, st.Nlink)
 	}
+	if err := file.Chown(uid, gid); err != nil {
+		return fmt.Errorf("chown %s: %w", envPath, err)
+	}
 	return file.Chmod(0o600)
 }
 
@@ -276,7 +282,7 @@ func readEnvFile(root string) (map[string]string, error) {
 	defer dir.Close()
 	file, err := dir.OpenFile(".env", os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open %s/.env: %w", root, err)
 	}
 	defer file.Close()
 	info, err := file.Stat()

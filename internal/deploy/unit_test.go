@@ -18,7 +18,7 @@ func TestRenderUnit(t *testing.T) {
 		"User=myapp",
 		"EnvironmentFile=/opt/myapp/.env",
 		"WorkingDirectory=/opt/myapp/app",
-		"ReadWritePaths=/opt/myapp/app",
+		"ReadWritePaths=/opt/myapp",
 		"WantedBy=multi-user.target",
 	} {
 		if !strings.Contains(unit, want) {
