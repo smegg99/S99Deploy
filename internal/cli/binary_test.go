@@ -19,8 +19,8 @@ func TestExitCodesFromTheCompiledBinary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a binary")
 	}
-	binary := filepath.Join(t.TempDir(), "s99deploy")
-	build := exec.Command("go", "build", "-o", binary, "../../cmd/s99deploy")
+	binary := filepath.Join(t.TempDir(), "depl")
+	build := exec.Command("go", "build", "-o", binary, "../../cmd/depl")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
@@ -32,7 +32,7 @@ func TestExitCodesFromTheCompiledBinary(t *testing.T) {
 		says string
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, says: "Usage:"},
-		{name: "version", args: []string{"--version"}, code: 0, says: "s99deploy 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, says: "depl 1.0.0"},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, says: "unknown flag"},
 		{name: "unknown command", args: []string{"bogus"}, code: 2, says: "unknown command"},
 		{name: "missing argument", args: []string{"up"}, code: 2, says: "accepts 1 arg(s)"},

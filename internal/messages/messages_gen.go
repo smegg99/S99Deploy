@@ -157,7 +157,7 @@ func CliCommandRootLong(l *i18n.Localizer) string {
 	return plain(l, "cli.command.rootLong")
 }
 
-// CliCommandRootShort One-line description of s99deploy.
+// CliCommandRootShort One-line description of depl.
 func CliCommandRootShort(l *i18n.Localizer) string {
 	return plain(l, "cli.command.rootShort")
 }

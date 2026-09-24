@@ -36,16 +36,16 @@ func Main(ctx context.Context, out, errOut io.Writer, args []string) int {
 	root.SetArgs(args)
 
 	return exit.Run(ctx, root, errOut, exit.Texts{
-		Name: "s99deploy-site",
+		Name: "depl-site",
 		Interrupted: messages.CliCommandInterrupted(opts.words,
-			messages.CliCommandInterruptedParams{Name: "s99deploy-site"}),
+			messages.CliCommandInterruptedParams{Name: "depl-site"}),
 	})
 }
 
 // NewSiteRootCmd builds the site's command tree.
 func NewSiteRootCmd(opts *siteOptions) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "s99deploy-site",
+		Use:           "depl-site",
 		Short:         messages.CliCommandSiteShort(opts.words),
 		Version:       s99deploy.Version(),
 		Args:          cobra.NoArgs,
@@ -53,7 +53,7 @@ func NewSiteRootCmd(opts *siteOptions) *cobra.Command {
 		SilenceErrors: true,
 		RunE:          func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	root.SetVersionTemplate("s99deploy-site {{.Version}}\n")
+	root.SetVersionTemplate("depl-site {{.Version}}\n")
 	root.AddCommand(newServeCmd(opts))
 	return root
 }
@@ -83,7 +83,7 @@ func newServeCmd(opts *siteOptions) *cobra.Command {
 			defer console.Close()
 
 			log := s99logger.New(console.Sink(), s99logger.Options{
-				Service:    "s99deploy-site",
+				Service:    "depl-site",
 				MinLevel:   s99logger.LevelInfo,
 				Language:   opts.lang,
 				Translator: messages.Translator(),

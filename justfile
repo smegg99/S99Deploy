@@ -1,5 +1,5 @@
 # justfile
-app_name := "s99deploy"
+app_name := "depl"
 
 # List available commands.
 default:
@@ -34,8 +34,8 @@ test:
 # Build both binaries into bin/.
 build:
     mkdir -p bin
-    go build -trimpath -o bin/{{app_name}} ./cmd/s99deploy
-    go build -trimpath -o bin/{{app_name}}-site ./cmd/s99deploy-site
+    go build -trimpath -o bin/{{app_name}} ./cmd/depl
+    go build -trimpath -o bin/{{app_name}}-site ./cmd/depl-site
 
 # Run the hosting site locally.
 site: build

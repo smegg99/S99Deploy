@@ -20,7 +20,7 @@ import (
 func config(t *testing.T, addr string) string {
 	t.Helper()
 	dir := t.TempDir()
-	binary := filepath.Join(dir, "s99deploy")
+	binary := filepath.Join(dir, "depl")
 	if err := os.WriteFile(binary, []byte("ELFBYTES"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -40,11 +40,11 @@ func TestSiteExitCodes(t *testing.T) {
 		says string
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, says: "serve"},
-		{name: "version", args: []string{"--version"}, code: 0, says: "s99deploy-site 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, says: "depl-site 1.0.0"},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, says: "unknown flag"},
 		{name: "unknown command", args: []string{"bogus"}, code: 2, says: "unknown command"},
 		{name: "missing config", args: []string{"serve", "--config", "/nowhere/config.json"}, code: 1,
-			says: "s99deploy-site:"},
+			says: "depl-site:"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			out, errOut := &bytes.Buffer{}, &bytes.Buffer{}
@@ -79,7 +79,7 @@ func TestServeStopsOnCancelAndExitsZero(t *testing.T) {
 		done <- site.Main(ctx, &bytes.Buffer{}, &bytes.Buffer{}, []string{"serve", "--config", path})
 	}()
 
-	waitForGet(t, "http://"+addr+"/s99deploy.sha256")
+	waitForGet(t, "http://"+addr+"/depl.sha256")
 	cancel()
 
 	select {

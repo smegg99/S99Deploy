@@ -271,7 +271,7 @@ func NewConfig(t *testing.T) (deploy.Config, *Runner, *Accounts, *Units, *Prober
 		OptDir:   opt,
 		UnitDir:  units,
 		GoBinDir: filepath.Join(base, "go", "bin"),
-		SelfPath: "/usr/local/bin/s99deploy",
+		SelfPath: "/usr/local/bin/depl",
 		// Root's privilege is faked; the ownership the install hands the
 		// root-owned parts is this process's own, which it may chown to.
 		Euid:     0,

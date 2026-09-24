@@ -17,7 +17,11 @@ func TestLiveProberReadsTheStatusCode(t *testing.T) {
 	}))
 	defer server.Close()
 
-	prober := LiveConfig().Prober
+	cfg, err := LiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prober := cfg.Prober
 	code = http.StatusOK
 	if err := prober.Probe(context.Background(), server.URL); err != nil {
 		t.Errorf("200 was reported as unhealthy: %v", err)

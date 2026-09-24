@@ -51,8 +51,8 @@ func New(cfg *Config, version string) (*Server, error) {
 	s := &Server{cfg: cfg, version: version, trusted: trusted, binary: binary, router: router}
 	router.GET("/", s.usage)
 	router.GET("/install.sh", s.installScript)
-	router.GET("/s99deploy", s.serveBinary)
-	router.GET("/s99deploy.sha256", s.checksum)
+	router.GET("/depl", s.serveBinary)
+	router.GET("/depl.sha256", s.checksum)
 	return s, nil
 }
 

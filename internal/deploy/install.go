@@ -39,7 +39,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	}
 
 	// The temp clone lives under OptDir so it can be renamed into place; /tmp is often tmpfs, where a cross-device rename fails.
-	tmp, err := os.MkdirTemp(d.cfg.OptDir, ".s99deploy-install-")
+	tmp, err := os.MkdirTemp(d.cfg.OptDir, ".depl-install-")
 	if err != nil {
 		return Installed{}, err
 	}
@@ -121,7 +121,7 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	return Installed{Name: m.Name, Root: root}, nil
 }
 
-// ownedUnit reports whether name's unit exists and s99deploy wrote it, and refuses a foreign one.
+// ownedUnit reports whether name's unit exists and depl wrote it, and refuses a foreign one.
 func (d *Deployer) ownedUnit(name string) (bool, error) {
 	path := d.unitPath(name)
 	info, err := os.Lstat(path)
@@ -132,14 +132,14 @@ func (d *Deployer) ownedUnit(name string) (bool, error) {
 		return false, err
 	}
 	if !info.Mode().IsRegular() {
-		return false, fmt.Errorf("%s is not a regular file; s99deploy will not touch it", path)
+		return false, fmt.Errorf("%s is not a regular file; depl will not touch it", path)
 	}
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return false, err
 	}
 	if !strings.Contains(string(body), unitMarker) {
-		return false, fmt.Errorf("%s was not written by s99deploy; remove it by hand", path)
+		return false, fmt.Errorf("%s was not written by depl; remove it by hand", path)
 	}
 	return true, nil
 }
@@ -216,7 +216,7 @@ func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Accoun
 
 	if got := filepath.Clean(account.Home); got != home {
 		return Account{}, fmt.Errorf(
-			"account %s already exists with home %s, want %s; s99deploy will not adopt it",
+			"account %s already exists with home %s, want %s; depl will not adopt it",
 			name, got, home)
 	}
 	return account, nil
@@ -352,7 +352,7 @@ func requireAgent(gitURL string) error {
 		return fmt.Errorf(
 			"%s needs SSH but no agent is reachable (SSH_AUTH_SOCK is unset). Start one\n"+
 				"and load a key with `ssh-add`, then keep it across sudo:\n"+
-				"  sudo --preserve-env=SSH_AUTH_SOCK s99deploy install %s", gitURL, gitURL)
+				"  sudo --preserve-env=SSH_AUTH_SOCK depl install %s", gitURL, gitURL)
 	}
 
 	info, err := os.Stat(sock)

@@ -8,7 +8,7 @@ package manifest
 	// Shell commands run in order as the service user in the app dir.
 	build: [...string & !=""] | *[] @go(Build,type=[]string)
 
-	// Argv exec'd by systemd through `s99deploy run`. argv[0] with a path
+	// Argv exec'd by systemd through `depl run`. argv[0] with a path
 	// separator is resolved relative to the app dir; a bare name through PATH.
 	run: [string & !="", ...string & !=""]
 

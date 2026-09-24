@@ -1,6 +1,6 @@
-// cmd/s99deploy-site/main.go
+// cmd/depl-site/main.go
 
-// s99deploy-site serves the s99deploy binary, its checksum and its install script.
+// depl-site serves the depl binary, its checksum and its install script.
 package main
 
 import (

@@ -20,7 +20,7 @@ func installed(t *testing.T, cfg deploy.Config, accounts *deploytest.Accounts, n
 	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	unit := deploy.RenderUnit(deploy.UnitParams{Name: name, Root: root, SelfPath: "/usr/local/bin/s99deploy"})
+	unit := deploy.RenderUnit(deploy.UnitParams{Name: name, Root: root, SelfPath: "/usr/local/bin/depl"})
 	if err := os.WriteFile(filepath.Join(cfg.UnitDir, name+".service"), []byte(unit), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func installed(t *testing.T, cfg deploy.Config, accounts *deploytest.Accounts, n
 	return root
 }
 
-// A unit s99deploy did not write is left alone, even under --purge.
+// A unit depl did not write is left alone, even under --purge.
 func TestUninstallRefusesAUnitItDidNotWrite(t *testing.T) {
 	cfg, _, accounts, units, _ := deploytest.NewConfig(t)
 	root := installed(t, cfg, accounts, "myapp", filepath.Join(cfg.OptDir, "myapp"))
@@ -41,7 +41,7 @@ func TestUninstallRefusesAUnitItDidNotWrite(t *testing.T) {
 	}
 
 	err := deploy.New(cfg).Uninstall(context.Background(), "myapp", true)
-	if err == nil || !strings.Contains(err.Error(), "not written by s99deploy") {
+	if err == nil || !strings.Contains(err.Error(), "not written by depl") {
 		t.Fatalf("err = %v, want the foreign unit refused", err)
 	}
 	if len(units.Disabled) != 0 {

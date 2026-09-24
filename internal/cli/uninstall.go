@@ -19,8 +19,8 @@ func newUninstallCmd(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uninstall <name>",
 		Short: messages.CliCommandUninstallShort(opts.words),
-		Example: "  sudo s99deploy uninstall myapp\n" +
-			"  sudo s99deploy uninstall --purge myapp",
+		Example: "  sudo depl uninstall myapp\n" +
+			"  sudo depl uninstall --purge myapp",
 		Args: cobra.ExactArgs(1),
 		RunE: exit.Work(func(cmd *cobra.Command, args []string) error {
 			name := args[0]

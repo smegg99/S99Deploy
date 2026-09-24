@@ -2,13 +2,13 @@
 
 package site
 
-// Config for the little site that hosts the s99deploy binary for curl.
+// Config for the little site that hosts the depl binary for curl.
 type Config struct {
 	GinMode string `json:"gin_mode"`
 
 	ListenAddr string `json:"listen_addr"`
 
-	// The CLI binary served at /s99deploy, relative to the working directory.
+	// The CLI binary served at /depl, relative to the working directory.
 	BinPath string `json:"bin_path"`
 
 	// Peers trusted for X-Forwarded-Proto and gin ClientIP: addresses or CIDR blocks; empty trusts nobody.

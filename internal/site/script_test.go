@@ -21,7 +21,7 @@ func TestInstallScriptVerifiesBeforeInstalling(t *testing.T) {
 		t.Run(map[bool]string{false: "matching download", true: "corrupt download"}[corrupt], func(t *testing.T) {
 			router, _ := serving(t, "ELFBYTES")
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if corrupt && r.URL.Path == "/s99deploy" {
+				if corrupt && r.URL.Path == "/depl" {
 					_, _ = io.WriteString(w, "TRUNCATED")
 					return
 				}
@@ -40,13 +40,13 @@ func TestInstallScriptVerifiesBeforeInstalling(t *testing.T) {
 
 			dir := t.TempDir()
 			destination := filepath.Join(dir, "installed")
-			stub := "#!/bin/sh\nset -eu\n[ \"$1\" = -m ]\n[ \"$2\" = 0755 ]\n[ \"$4\" = /usr/local/bin/s99deploy ]\ncp \"$3\" \"$S99DEPLOY_TEST_DEST\"\n"
+			stub := "#!/bin/sh\nset -eu\n[ \"$1\" = -m ]\n[ \"$2\" = 0755 ]\n[ \"$4\" = /usr/local/bin/depl ]\ncp \"$3\" \"$DEPL_TEST_DEST\"\n"
 			if err := os.WriteFile(filepath.Join(dir, "install"), []byte(stub), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			cmd := exec.Command("sh")
 			cmd.Stdin = strings.NewReader(string(body))
-			cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "S99DEPLOY_TEST_DEST="+destination, "TMPDIR="+dir)
+			cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "DEPL_TEST_DEST="+destination, "TMPDIR="+dir)
 			output, err := cmd.CombinedOutput()
 			if corrupt {
 				if err == nil || !strings.Contains(string(output), "checksum mismatch") {

@@ -16,7 +16,7 @@ func newInstallCmd(opts *rootOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:     "install <git-url>",
 		Short:   messages.CliCommandInstallShort(opts.words),
-		Example: "  sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/MyApp.git",
+		Example: "  sudo --preserve-env=SSH_AUTH_SOCK depl install git@github.com:smegg99/MyApp.git",
 		Args:    cobra.ExactArgs(1),
 		RunE: exit.Work(func(cmd *cobra.Command, args []string) error {
 			installed, err := opts.deployer.Install(cmd.Context(), args[0])

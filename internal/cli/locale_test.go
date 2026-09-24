@@ -75,7 +75,7 @@ func TestLoggerRendersSentencesAndNotIds(t *testing.T) {
 	// reads "logs.installed" where a sentence belongs.
 	sink := &deploytest.Sink{}
 	log := s99logger.New(sink, s99logger.Options{
-		Service: "s99deploy", Language: "pl", Translator: messages.Translator(),
+		Service: "depl", Language: "pl", Translator: messages.Translator(),
 	})
 
 	log.Info(s99logger.NewEvent(messages.KeyLogsInstalled))

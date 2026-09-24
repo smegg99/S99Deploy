@@ -72,7 +72,7 @@ func TestForwardedScheme(t *testing.T) {
 func newServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	binPath := filepath.Join(t.TempDir(), "s99deploy")
+	binPath := filepath.Join(t.TempDir(), "depl")
 	if err := os.WriteFile(binPath, []byte("ELFBYTES"), 0o755); err != nil {
 		t.Fatal(err)
 	}

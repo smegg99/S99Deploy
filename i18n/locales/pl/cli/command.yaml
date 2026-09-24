@@ -1,11 +1,11 @@
 rootShort:
-  description: One-line description of s99deploy.
+  description: One-line description of depl.
   value: Wdrażaj aplikacje z manifestem do /opt pod systemd
 rootLong:
   description: The paragraph shown above the command list.
   value: >-
     Jedno narzędzie wdrożeniowe dla każdej aplikacji o tym samym kształcie na
-    serwerze. Każde repozytorium niesie manifest deploy.json; s99deploy obsługuje
+    serwerze. Każde repozytorium niesie manifest deploy.json; depl obsługuje
     wokół niego install, up, run i uninstall.
 installShort:
   description: One-line description of the install command.
@@ -21,7 +21,7 @@ uninstallShort:
   value: Usuń jednostkę; --purge usuwa też /opt/<name> i konto
 siteShort:
   description: One-line description of the site binary.
-  value: Serwuj binarkę s99deploy, jej sumę kontrolną i skrypt instalacyjny
+  value: Serwuj binarkę depl, jej sumę kontrolną i skrypt instalacyjny
 serveShort:
   description: One-line description of the site's serve command.
   value: Nasłuchuj pod skonfigurowanym adresem do przerwania
@@ -98,7 +98,7 @@ invalidColor:
     value: {type: string}
 nextSteps:
   description: What install prints when it finishes.
-  value: "\nDalej:\n  1. uzupełnij {root}/.env\n  2. sudo s99deploy up {name}\n"
+  value: "\nDalej:\n  1. uzupełnij {root}/.env\n  2. sudo depl up {name}\n"
   placeholders:
     root: {type: string}
     name: {type: string}

@@ -17,7 +17,7 @@ import (
 func serving(t *testing.T, body string) (*gin.Engine, string) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	path := filepath.Join(t.TempDir(), "s99deploy")
+	path := filepath.Join(t.TempDir(), "depl")
 	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestInstallScriptQuotesTheServedDigest(t *testing.T) {
 	if !strings.HasPrefix(script, "#!/bin/sh") {
 		t.Errorf("install.sh has no shebang:\n%s", script)
 	}
-	if !strings.Contains(script, "https://get.example.com/s99deploy") {
+	if !strings.Contains(script, "https://get.example.com/depl") {
 		t.Errorf("install.sh does not point at the request host:\n%s", script)
 	}
 	// A truncated download of the script itself must define a function and do
@@ -60,14 +60,14 @@ func TestInstallScriptQuotesTheServedDigest(t *testing.T) {
 		t.Errorf("install.sh does not end with its own invocation:\n%s", script)
 	}
 
-	checksum := fetch(t, router, "/s99deploy.sha256").Body.String()
-	if checksum != want+"  s99deploy\n" {
-		t.Errorf("/s99deploy.sha256 = %q, want the sha256sum format", checksum)
+	checksum := fetch(t, router, "/depl.sha256").Body.String()
+	if checksum != want+"  depl\n" {
+		t.Errorf("/depl.sha256 = %q, want the sha256sum format", checksum)
 	}
 
-	binary := fetch(t, router, "/s99deploy")
+	binary := fetch(t, router, "/depl")
 	if binary.Body.String() != "ELFBYTES" {
-		t.Errorf("/s99deploy served %q", binary.Body.String())
+		t.Errorf("/depl served %q", binary.Body.String())
 	}
 }
 

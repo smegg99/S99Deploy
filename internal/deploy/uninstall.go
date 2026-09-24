@@ -22,7 +22,7 @@ func (d *Deployer) Uninstall(ctx context.Context, name string, purge bool) error
 	if err := ValidateName(name); err != nil {
 		return err
 	}
-	// Only a unit s99deploy wrote is disabled and removed, so a mask, an alias
+	// Only a unit depl wrote is disabled and removed, so a mask, an alias
 	// or a hand-written service that happens to share the name is left alone.
 	unitPath := d.unitPath(name)
 	exists, err := d.ownedUnit(name)

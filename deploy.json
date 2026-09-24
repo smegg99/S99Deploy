@@ -1,9 +1,9 @@
 {
 	"name": "s99deploy-site",
 	"build": [
-		"go build -trimpath -o bin/s99deploy ./cmd/s99deploy",
-		"go build -trimpath -o bin/s99deploy-site ./cmd/s99deploy-site"
+		"go build -trimpath -o bin/depl ./cmd/depl",
+		"go build -trimpath -o bin/depl-site ./cmd/depl-site"
 	],
-	"run": ["bin/s99deploy-site", "serve", "--config", "config.json"],
+	"run": ["bin/depl-site", "serve", "--config", "config.json"],
 	"check": { "port": 9250, "path": "/", "timeout_seconds": 30 }
 }

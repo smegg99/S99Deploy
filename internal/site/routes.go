@@ -24,7 +24,7 @@ func (s *Server) installScript(c *gin.Context) {
 	}
 	sum, _, err := s.binary.get()
 	if err != nil {
-		c.String(http.StatusServiceUnavailable, "s99deploy: %s is not readable\n", s.cfg.BinPath)
+		c.String(http.StatusServiceUnavailable, "depl: %s is not readable\n", s.cfg.BinPath)
 		return
 	}
 	c.String(http.StatusOK, installScript, base, s.version, sum)
@@ -34,19 +34,19 @@ func (s *Server) installScript(c *gin.Context) {
 func (s *Server) checksum(c *gin.Context) {
 	sum, _, err := s.binary.get()
 	if err != nil {
-		c.String(http.StatusServiceUnavailable, "s99deploy: %s is not readable\n", s.cfg.BinPath)
+		c.String(http.StatusServiceUnavailable, "depl: %s is not readable\n", s.cfg.BinPath)
 		return
 	}
-	c.String(http.StatusOK, "%s  s99deploy\n", sum)
+	c.String(http.StatusOK, "%s  depl\n", sum)
 }
 
 func (s *Server) serveBinary(c *gin.Context) {
-	c.FileAttachment(s.cfg.BinPath, "s99deploy")
+	c.FileAttachment(s.cfg.BinPath, "depl")
 }
 
 // refuseHost answers a host the served commands will not quote.
 func refuseHost(c *gin.Context) {
 	// The host is not echoed. This body can reach a root shell through
 	// `curl ... | sudo sh`, so it carries nothing the request chose.
-	c.String(http.StatusBadRequest, "s99deploy: this site does not answer to that host\n")
+	c.String(http.StatusBadRequest, "depl: this site does not answer to that host\n")
 }

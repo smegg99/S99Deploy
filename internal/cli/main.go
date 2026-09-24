@@ -21,14 +21,22 @@ func Main(ctx context.Context, in io.Reader, out, errOut io.Writer, args []strin
 	color, _ := flagFromArgs(args, "--color")
 	verbose := boolFromArgs(args, "--verbose")
 
-	opts, colorErr := newRootOptions(lang, color, verbose, in, out, errOut)
+	// install writes this binary's own path into every unit's ExecStart, so a
+	// box that cannot report it gets an error instead of an assumed path.
+	cfg, selfErr := deploy.LiveConfig()
+	if selfErr != nil {
+		fmt.Fprintln(errOut, "depl:", selfErr)
+		return exit.Error
+	}
+
+	opts, colorErr := newRootOptions(cfg, lang, color, verbose, in, out, errOut)
 	if opts.console != nil {
 		defer opts.console.Close()
 	}
 	if err := errors.Join(langErr, colorErr); err != nil {
 		// The tree is built anyway, so the usage block is in the language the
 		// environment asked for rather than in none.
-		fmt.Fprintln(errOut, "s99deploy:", err)
+		fmt.Fprintln(errOut, "depl:", err)
 		fmt.Fprint(errOut, NewRootCmd(opts).UsageString())
 		return exit.Usage
 	}
@@ -36,7 +44,7 @@ func Main(ctx context.Context, in io.Reader, out, errOut io.Writer, args []strin
 }
 
 // newRootOptions wires the one console, the logger that writes through it, and the live deployer.
-func newRootOptions(lang, color string, verbose bool, in io.Reader, out, errOut io.Writer) (*rootOptions, error) {
+func newRootOptions(cfg deploy.Config, lang, color string, verbose bool, in io.Reader, out, errOut io.Writer) (*rootOptions, error) {
 	words := messages.Localizer(lang)
 	profile, err := profileFor(color, words)
 	if err != nil {
@@ -52,7 +60,7 @@ func newRootOptions(lang, color string, verbose bool, in io.Reader, out, errOut 
 
 	console := newConsole(errOut, profile, words)
 	log := s99logger.New(console.Sink(), s99logger.Options{
-		Service:    "s99deploy",
+		Service:    "depl",
 		MinLevel:   level,
 		Language:   lang,
 		Translator: messages.Translator(),
@@ -60,7 +68,6 @@ func newRootOptions(lang, color string, verbose bool, in io.Reader, out, errOut 
 	s99logger.SetDefault(log)
 
 	steps := NewStepper(console, words)
-	cfg := deploy.LiveConfig()
 	cfg.Log = log
 	cfg.Progress = steps
 	return &rootOptions{
@@ -76,7 +83,7 @@ func run(ctx context.Context, opts *rootOptions, args []string) int {
 		opts.lang, opts.words = lang, messages.Localizer(lang)
 	} else if err != nil {
 		root := NewRootCmd(opts)
-		fmt.Fprintln(opts.errOut, "s99deploy:", err)
+		fmt.Fprintln(opts.errOut, "depl:", err)
 		fmt.Fprint(opts.errOut, root.UsageString())
 		return exit.Usage
 	}
@@ -85,8 +92,8 @@ func run(ctx context.Context, opts *rootOptions, args []string) int {
 	root.SetArgs(args)
 
 	return exit.Run(ctx, root, opts.errOut, exit.Texts{
-		Name: "s99deploy",
+		Name: "depl",
 		Interrupted: messages.CliCommandInterrupted(opts.words,
-			messages.CliCommandInterruptedParams{Name: "s99deploy"}),
+			messages.CliCommandInterruptedParams{Name: "depl"}),
 	})
 }

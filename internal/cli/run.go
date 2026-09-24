@@ -14,7 +14,7 @@ func newRunCmd(opts *rootOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:     "run <root>",
 		Short:   messages.CliCommandRunShort(opts.words),
-		Example: "  /usr/local/bin/s99deploy run /opt/myapp",
+		Example: "  /usr/local/bin/depl run /opt/myapp",
 		Args:    cobra.ExactArgs(1),
 		RunE: exit.Work(func(cmd *cobra.Command, args []string) error {
 			return opts.deployer.Run(cmd.Context(), args[0])

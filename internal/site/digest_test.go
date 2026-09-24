@@ -15,7 +15,7 @@ import (
 func TestDigestFollowsTheFileOnDisk(t *testing.T) {
 	// A build that replaced the binary and then failed its second build command
 	// must not leave the site quoting the old checksum.
-	path := filepath.Join(t.TempDir(), "s99deploy")
+	path := filepath.Join(t.TempDir(), "depl")
 	if err := os.WriteFile(path, []byte("first"), 0o755); err != nil {
 		t.Fatal(err)
 	}

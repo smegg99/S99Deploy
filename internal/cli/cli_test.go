@@ -62,7 +62,7 @@ func TestExitCodeTable(t *testing.T) {
 		usage  bool
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, stdout: "Usage:"},
-		{name: "version", args: []string{"--version"}, code: 0, stdout: "s99deploy 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, stdout: "depl 1.0.0"},
 		// Not nil: cobra reads os.Args[1:] for a nil argument list, which in a
 		// test is the test binary's own flags.
 		{name: "no args", args: []string{}, code: 0, stdout: "Usage:"},
@@ -77,7 +77,7 @@ func TestExitCodeTable(t *testing.T) {
 		{name: "up with an unknown flag", args: []string{"up", "--nope", "myapp"}, code: 2,
 			stderr: "unknown flag: --nope", usage: true},
 		{name: "up on a box with no checkout", args: []string{"up", "myapp"}, code: 1,
-			stderr: "s99deploy: no checkout at"},
+			stderr: "depl: no checkout at"},
 		{name: "help for a command", args: []string{"help", "up"}, code: 0, stdout: "health check"},
 		{name: "completion", args: []string{"completion", "bash"}, code: 0, stdout: "bash completion"},
 	} {
@@ -122,7 +122,7 @@ func TestUninstallPromptAndYes(t *testing.T) {
 	if code := run(context.Background(), opts, []string{"uninstall", "myapp"}); code != 1 {
 		t.Error("a mistyped name did not abort")
 	}
-	if !strings.Contains(stderr.String(), "s99deploy: aborted") {
+	if !strings.Contains(stderr.String(), "depl: aborted") {
 		t.Errorf("stderr = %q, want the abort line", stderr)
 	}
 
@@ -174,7 +174,7 @@ func TestVerboseLowersTheLogLevel(t *testing.T) {
 
 	for _, verbose := range []bool{false, true} {
 		errOut := &bytes.Buffer{}
-		opts, err := newRootOptions(messages.DefaultLocale, "never", verbose,
+		opts, err := newRootOptions(deploy.Config{}, messages.DefaultLocale, "never", verbose,
 			strings.NewReader(""), &bytes.Buffer{}, errOut)
 		if err != nil {
 			t.Fatal(err)

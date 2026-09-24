@@ -89,7 +89,7 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"User=myapp", "ExecStart=/usr/local/bin/s99deploy run " + root,
+		"User=myapp", "ExecStart=/usr/local/bin/depl run " + root,
 		"ReadWritePaths=" + root + "/app " + root + "/home",
 		"Environment=HOME=" + root + "/home", "EnvironmentFile=" + root + "/.env",
 	} {
@@ -163,7 +163,7 @@ func TestInstallIsRerunnable(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".s99deploy-install-") {
+		if strings.HasPrefix(entry.Name(), ".depl-install-") {
 			t.Errorf("a temp checkout survived: %s", entry.Name())
 		}
 	}
@@ -230,7 +230,7 @@ func TestInstallRefusesToAdoptAForeignAccount(t *testing.T) {
 		t.Fatalf("err = %v, want it to name the foreign home", err)
 	}
 	if _, err := os.Stat(filepath.Join(cfg.UnitDir, "myapp.service")); !os.IsNotExist(err) {
-		t.Error("a unit was written for an account s99deploy refused to adopt")
+		t.Error("a unit was written for an account depl refused to adopt")
 	}
 }
 
@@ -244,7 +244,7 @@ func TestInstallRefusesToOverwriteAForeignUnit(t *testing.T) {
 	}
 
 	_, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
-	if err == nil || !strings.Contains(err.Error(), "not written by s99deploy") {
+	if err == nil || !strings.Contains(err.Error(), "not written by depl") {
 		t.Fatalf("err = %v, want the foreign unit refused", err)
 	}
 	if body, _ := os.ReadFile(foreign); !strings.Contains(string(body), "sddm") {

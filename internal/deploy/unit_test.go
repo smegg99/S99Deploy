@@ -10,11 +10,11 @@ import (
 func TestRenderUnit(t *testing.T) {
 	// Not the production path: a template that hardcoded it would pass.
 	unit := RenderUnit(UnitParams{
-		Name: "myapp", Root: "/opt/myapp", SelfPath: "/tmp/elsewhere/s99deploy",
+		Name: "myapp", Root: "/opt/myapp", SelfPath: "/tmp/elsewhere/depl",
 	})
 
 	for _, want := range []string{
-		"ExecStart=/tmp/elsewhere/s99deploy run /opt/myapp",
+		"ExecStart=/tmp/elsewhere/depl run /opt/myapp",
 		"User=myapp",
 		"EnvironmentFile=/opt/myapp/.env",
 		"WorkingDirectory=/opt/myapp/app",
@@ -39,7 +39,7 @@ func TestRenderUnit(t *testing.T) {
 func TestUnitAllowsUnixSockets(t *testing.T) {
 	// Denying it bought nothing against a process that already has AF_INET.
 	unit := RenderUnit(UnitParams{
-		Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/s99deploy",
+		Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/depl",
 	})
 
 	const want = "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6"
@@ -61,7 +61,7 @@ func TestUnitAllowsUnixSockets(t *testing.T) {
 
 // A path the tool builds must not be able to hide a second directive.
 func TestRenderUnitRefusesNothingItIsNotGiven(t *testing.T) {
-	unit := RenderUnit(UnitParams{Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/s99deploy"})
+	unit := RenderUnit(UnitParams{Name: "myapp", Root: "/opt/myapp", SelfPath: "/usr/local/bin/depl"})
 
 	if strings.Count(unit, "ExecStart=") != 1 {
 		t.Errorf("want exactly one ExecStart:\n%s", unit)

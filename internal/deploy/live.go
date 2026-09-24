@@ -15,7 +15,14 @@ import (
 )
 
 // LiveConfig is the box: real /opt, real systemd, real processes.
-func LiveConfig() Config {
+func LiveConfig() (Config, error) {
+	// The unit's ExecStart carries this, so it has to be where the binary
+	// actually is. A guess writes a unit that a moved or differently installed
+	// binary cannot satisfy, and the failure only shows up at the next restart.
+	self, err := os.Executable()
+	if err != nil {
+		return Config{}, fmt.Errorf("resolve the path of this binary: %w", err)
+	}
 	runner := &liveRunner{out: os.Stdout, errOut: os.Stderr}
 	return Config{
 		OptDir:  "/opt",
@@ -23,7 +30,7 @@ func LiveConfig() Config {
 		// The rest of systemd's search path, so a manifest name cannot claim a unit that lives here.
 		SystemUnitDirs: []string{"/run/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system"},
 		GoBinDir:       "/usr/local/go/bin",
-		SelfPath:       "/usr/local/bin/s99deploy",
+		SelfPath:       self,
 		Euid:           os.Geteuid(),
 		OwnerUID:       os.Geteuid(),
 		OwnerGID:       os.Getegid(),
@@ -31,7 +38,7 @@ func LiveConfig() Config {
 		Accounts:       liveAccounts{runner: runner},
 		Units:          liveUnits{runner: runner},
 		Prober:         liveProber{client: &http.Client{Timeout: 5 * time.Second}},
-	}
+	}, nil
 }
 
 // liveAccounts is useradd, userdel and the passwd database.

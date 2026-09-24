@@ -20,7 +20,7 @@ func newUpCmd(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "up <name>",
 		Short:   messages.CliCommandUpShort(opts.words),
-		Example: "  sudo s99deploy up myapp",
+		Example: "  sudo depl up myapp",
 		Args:    cobra.ExactArgs(1),
 		RunE: exit.Work(func(cmd *cobra.Command, args []string) error {
 			return opts.deployer.Up(cmd.Context(), args[0], flags.timeout)

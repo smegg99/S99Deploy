@@ -1,12 +1,12 @@
 rootShort:
-  description: One-line description of s99deploy.
+  description: One-line description of depl.
   value: Deploy manifest-carrying apps to /opt under systemd
 rootLong:
   description: The paragraph shown above the command list.
   value: >-
     One deploy CLI for every same-shape app on the box. Each app repo carries a
-    deploy.json manifest; s99deploy owns install, up, run and uninstall around
-    that manifest.
+    deploy.json manifest; depl owns install, up, run and uninstall around that
+    manifest.
 installShort:
   description: One-line description of the install command.
   value: 'One-time app setup: clone, account, systemd unit'
@@ -21,7 +21,7 @@ uninstallShort:
   value: Remove the unit; --purge also removes /opt/<name> and the account
 siteShort:
   description: One-line description of the site binary.
-  value: Serve the s99deploy binary, its checksum and its install script
+  value: Serve the depl binary, its checksum and its install script
 serveShort:
   description: One-line description of the site's serve command.
   value: Listen on the configured address until interrupted
@@ -98,7 +98,7 @@ invalidColor:
     value: {type: string}
 nextSteps:
   description: What install prints when it finishes.
-  value: "\nNext:\n  1. fill in {root}/.env\n  2. sudo s99deploy up {name}\n"
+  value: "\nNext:\n  1. fill in {root}/.env\n  2. sudo depl up {name}\n"
   placeholders:
     root: {type: string}
     name: {type: string}

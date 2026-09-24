@@ -1,6 +1,6 @@
-// cmd/s99deploy/main.go
+// cmd/depl/main.go
 
-// s99deploy deploys manifest-carrying apps to /opt under systemd.
+// depl deploys manifest-carrying apps to /opt under systemd.
 package main
 
 import (

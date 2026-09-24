@@ -76,7 +76,7 @@ func (d *Deployer) unitPath(name string) string {
 // requireRoot refuses the privileged flows before they touch anything.
 func (d *Deployer) requireRoot() error {
 	if d.cfg.Euid != 0 {
-		return fmt.Errorf("must run as root: sudo s99deploy ...")
+		return fmt.Errorf("must run as root: sudo depl ...")
 	}
 	return nil
 }

@@ -6,12 +6,11 @@ dedicated system account under systemd, listening on a loopback port behind a
 reverse proxy.
 
 Instead of each app repo carrying its own `deploy.sh`, `install-systemd.sh` and
-unit template, the app carries one `deploy.json` and the box carries one
-`s99deploy` binary. The unit is generated from a single template whose
-`ExecStart` is `s99deploy run`, so every app's unit is the same file with three
-values filled in.
+unit template, the app carries one `deploy.json` and the box carries one `depl`
+binary. The unit is generated from a single template whose `ExecStart` is
+`depl run`, so every app's unit is the same file with three values filled in.
 
-Linux and systemd only. The site at `/s99deploy` serves a linux/amd64 binary.
+Linux and systemd only. The site at `/depl` serves a linux/amd64 binary.
 
 Built with [cobra](https://github.com/spf13/cobra),
 [s99config](https://github.com/smegg99/s99config) (CUE-schema validation),
@@ -23,7 +22,7 @@ Built with [cobra](https://github.com/spf13/cobra),
 On the VPS, to run it:
 
 - systemd, `git`, `bash`, `useradd` and `userdel` (shadow-utils)
-- whatever the apps build with (Go toolchain, Node and pnpm, ...). `s99deploy`
+- whatever the apps build with (Go toolchain, Node and pnpm, ...). `depl`
   prepends `/usr/local/go/bin` to `PATH` for builds when that directory exists
 
 To build it from source: Go 1.27 and [just](https://github.com/casey/just).
@@ -49,8 +48,18 @@ The script downloads to a temporary file, compares its sha256 with the digest
 the site read from the same file it serves, and installs nothing on a mismatch.
 The script and the binary come from one origin, so this catches a truncated or
 corrupted download, not a compromised host: TLS is the trust boundary. The
-digest is also served on its own at `/s99deploy.sha256`, in `sha256sum -c`
-format.
+digest is also served on its own at `/depl.sha256`, in `sha256sum -c` format.
+
+### Upgrading from s99deploy
+
+The command is now `depl`, installed at `/usr/local/bin/depl`. A unit written by
+`s99deploy` still names `/usr/local/bin/s99deploy` in its `ExecStart`, so it
+fails as soon as that file is gone. Install `depl`, then for every app run
+`sudo depl install <git-url>` to rewrite the unit and `sudo depl up <name>` to
+restart it, and only then remove `/usr/local/bin/s99deploy`. That rerun is the
+same one the writable-`HOME` change already asks for, so the rename adds no
+further step. The ownership marker in the unit is unchanged, so `install` and
+`uninstall` still recognise the units the old binary wrote.
 
 ## The manifest
 
@@ -86,22 +95,25 @@ Each app repo carries a `deploy.json` in its root, validated against
 ## Commands
 
 ```sh
-sudo s99deploy install <git-url>              # one-time app setup
-sudo s99deploy up <name> [--timeout 60s]      # deploy
-sudo s99deploy uninstall [--purge] [--yes] <name>
-s99deploy run <root>                          # systemd ExecStart, not for people
+sudo depl install <git-url>              # one-time app setup
+sudo depl up <name> [--timeout 60s]      # deploy
+sudo depl uninstall [--purge] [--yes] <name>
+depl run <root>                          # systemd ExecStart, not for people
 ```
 
 `install` clones the repo, reads the manifest, creates the `<name>` system
 account (no password, no sudo), lays out `/opt/<name>` with the checkout at
 `/opt/<name>/app` and the account's home at `/opt/<name>/home` at mode 0700,
 seeds `/opt/<name>/.env` from `app/.env.example` at mode 0600, and installs and
-enables the unit. It is safe to rerun. It refuses to adopt an existing account
-whose home is not `/opt/<name>`, because adopting one is how a later `--purge`
-deletes the wrong directory; it refuses a name that
-already has a unit somewhere on systemd's search path, and a unit file it did
-not write itself. `/opt/<name>` stays root-owned, and `.env` root-owned at
-mode 0600; a rerun takes both back if an older install left them to the account.
+enables the unit. `ExecStart` is the path of the binary that ran `install`, so
+run the installed `/usr/local/bin/depl`: a unit pointing at a binary inside a
+home directory cannot start under `ProtectHome=true`. It is safe to rerun. It
+refuses to adopt an existing account whose home is not `/opt/<name>`, because
+adopting one is how a later `--purge` deletes the wrong directory; it refuses a
+name that already has a unit somewhere on systemd's search path, and a unit
+file it did not write itself. `/opt/<name>` stays root-owned, and `.env`
+root-owned at mode 0600; a rerun takes both back if an older install left them
+to the account.
 The account owns `app/` and `home/` inside it. `home/` is the `HOME` every build
 command and the service itself run with: `go build` writes its build cache
 there, `pnpm` and `npm` their `~/.cache` and `~/.local`, and a `HOME` the
@@ -148,7 +160,7 @@ The first clone runs as root, and `sudo` drops `SSH_AUTH_SOCK` under its default
 `env_reset`, so agent forwarding alone is not enough:
 
 ```sh
-sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/MyApp.git
+sudo --preserve-env=SSH_AUTH_SOCK depl install git@github.com:smegg99/MyApp.git
 ```
 
 `install` checks for the socket before it clones an SSH URL and tells you this
@@ -191,8 +203,8 @@ is installed again.
 | --- | --- |
 | `/` | Plain-text usage with copy-pasteable install commands. |
 | `/install.sh` | A script that verifies the checksum before installing. |
-| `/s99deploy` | The linux/amd64 binary, built at deploy time from this repo. |
-| `/s99deploy.sha256` | The digest of that binary, in `sha256sum -c` format. |
+| `/depl` | The linux/amd64 binary, built at deploy time from this repo. |
+| `/depl.sha256` | The digest of that binary, in `sha256sum -c` format. |
 
 The printed URLs follow the request host, so the site works on any domain behind
 a reverse proxy:
@@ -219,8 +231,8 @@ The repo carries its own [`deploy.json`](deploy.json), so the site is deployed
 with the tool it hosts:
 
 ```sh
-sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/S99Deploy.git
-sudo s99deploy up s99deploy-site
+sudo --preserve-env=SSH_AUTH_SOCK depl install git@github.com:smegg99/S99Deploy.git
+sudo depl up s99deploy-site
 ```
 
 Run it locally with `just site`.

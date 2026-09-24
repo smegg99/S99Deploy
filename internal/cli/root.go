@@ -1,6 +1,6 @@
 // internal/cli/root.go
 
-// Package cli is the s99deploy command tree.
+// Package cli is the depl command tree.
 package cli
 
 import (
@@ -32,7 +32,7 @@ type rootOptions struct {
 // NewRootCmd builds the command tree over opts.
 func NewRootCmd(opts *rootOptions) *cobra.Command {
 	root := &cobra.Command{
-		Use:     "s99deploy",
+		Use:     "depl",
 		Short:   messages.CliCommandRootShort(opts.words),
 		Long:    messages.CliCommandRootLong(opts.words),
 		Version: s99deploy.Version(),
@@ -42,7 +42,7 @@ func NewRootCmd(opts *rootOptions) *cobra.Command {
 		SilenceErrors: true,
 		RunE:          func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	root.SetVersionTemplate("s99deploy {{.Version}}\n")
+	root.SetVersionTemplate("depl {{.Version}}\n")
 
 	// The value is already resolved; the flag exists so cobra accepts it and
 	// prints it in the help this same language rendered.
