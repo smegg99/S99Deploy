@@ -4,6 +4,7 @@ package cli_test
 
 import (
 	"errors"
+	"github.com/smegg99/s99deploy"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +33,7 @@ func TestExitCodesFromTheCompiledBinary(t *testing.T) {
 		says string
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, says: "Usage:"},
-		{name: "version", args: []string{"--version"}, code: 0, says: "depl 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, says: "depl " + s99deploy.Declared()},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, says: "unknown flag"},
 		{name: "unknown command", args: []string{"bogus"}, code: 2, says: "unknown command"},
 		{name: "missing argument", args: []string{"up"}, code: 2, says: "accepts 1 arg(s)"},

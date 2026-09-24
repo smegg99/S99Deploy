@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"github.com/smegg99/s99deploy"
 	"io"
 	"strings"
 	"testing"
@@ -71,7 +72,7 @@ func TestExitCodeTable(t *testing.T) {
 		usage  bool
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, stdout: "Usage:"},
-		{name: "version", args: []string{"--version"}, code: 0, stdout: "depl 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, stdout: "depl " + s99deploy.Declared()},
 		// Not nil: cobra reads os.Args[1:] for a nil argument list, which in a
 		// test is the test binary's own flags.
 		{name: "no args", args: []string{}, code: 0, stdout: "Usage:"},

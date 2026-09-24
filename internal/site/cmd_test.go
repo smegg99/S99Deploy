@@ -5,6 +5,7 @@ package site_test
 import (
 	"bytes"
 	"context"
+	"github.com/smegg99/s99deploy"
 	"net"
 	"net/http"
 	"os"
@@ -40,7 +41,7 @@ func TestSiteExitCodes(t *testing.T) {
 		says string
 	}{
 		{name: "help", args: []string{"--help"}, code: 0, says: "serve"},
-		{name: "version", args: []string{"--version"}, code: 0, says: "depl-site 1.0.0"},
+		{name: "version", args: []string{"--version"}, code: 0, says: "depl-site " + s99deploy.Declared()},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, says: "unknown flag"},
 		{name: "unknown command", args: []string{"bogus"}, code: 2, says: "unknown command"},
 		{name: "missing config", args: []string{"serve", "--config", "/nowhere/config.json"}, code: 1,
