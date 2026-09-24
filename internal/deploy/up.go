@@ -47,8 +47,6 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	if err != nil {
 		return err
 	}
-	d.cfg.Log.Info(s99logger.NewEvent(EventPulling, s99logger.String("app", name)))
-
 	// Read the manifest after the pull so a deploy picks up its own changes.
 	m, err := manifest.Load(filepath.Join(appDir, "deploy.json"))
 	if err != nil {
@@ -83,7 +81,6 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 		if err != nil {
 			return err
 		}
-		d.cfg.Log.Info(s99logger.NewEvent(EventBuilding, s99logger.String("command", command)))
 	}
 
 	end = d.cfg.Progress.Begin(StepRestart, name)
@@ -92,8 +89,6 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 	if err != nil {
 		return err
 	}
-	d.cfg.Log.Info(s99logger.NewEvent(EventRestarting, s99logger.String("service", name)))
-
 	// Read after the restart, not before: a manual restart resets the restart
 	// accounting, so a pre-restart reading would mean nothing.
 	baseline, err := d.cfg.Units.State(ctx, name)

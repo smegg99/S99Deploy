@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"github.com/smegg99/s99term"
 	"github.com/spf13/cobra"
 
 	"github.com/smegg99/s99deploy"
@@ -20,6 +21,8 @@ type rootOptions struct {
 	color    string
 	verbose  bool
 	words    *i18n.Localizer
+	console  *s99term.Console
+	steps    *Stepper
 	deployer *deploy.Deployer
 	in       io.Reader
 	out      io.Writer

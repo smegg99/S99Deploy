@@ -52,8 +52,6 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err != nil {
 		return Installed{}, err
 	}
-	d.cfg.Log.Info(s99logger.NewEvent(EventCloning, s99logger.String("repo", gitURL)))
-
 	m, err := manifest.Load(filepath.Join(checkout, "deploy.json"))
 	if err != nil {
 		return Installed{}, err

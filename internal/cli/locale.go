@@ -12,8 +12,8 @@ import (
 	"github.com/smegg99/s99deploy/internal/messages"
 )
 
-// langFromArgs finds --lang in the arguments, in both spellings.
-func langFromArgs(args []string) (string, bool) {
+// flagFromArgs finds a long flag in the arguments, in both spellings.
+func flagFromArgs(args []string, name string) (string, bool) {
 	// Anything after the -- terminator is ignored, and the last one wins, like
 	// every other flag.
 	value, found := "", false
@@ -21,15 +21,37 @@ func langFromArgs(args []string) (string, bool) {
 		switch {
 		case arg == "--":
 			return value, found
-		case arg == "--lang":
+		case arg == name:
 			if i+1 < len(args) {
 				value, found = args[i+1], true
 			}
-		case strings.HasPrefix(arg, "--lang="):
-			value, found = strings.TrimPrefix(arg, "--lang="), true
+		case strings.HasPrefix(arg, name+"="):
+			value, found = strings.TrimPrefix(arg, name+"="), true
 		}
 	}
 	return value, found
+}
+
+// langFromArgs is flagFromArgs for the flag that is read before the tree exists.
+func langFromArgs(args []string) (string, bool) { return flagFromArgs(args, "--lang") }
+
+// boolFromArgs reports whether a boolean long flag was given and not switched off.
+func boolFromArgs(args []string, name string) bool {
+	// The command tree does not exist yet to parse it properly, and --verbose is
+	// a boolean: flagFromArgs takes the next argument as a value, so it would
+	// read `--verbose false` as verbose.
+	on := false
+	for _, arg := range args {
+		switch {
+		case arg == "--":
+			return on
+		case arg == name:
+			on = true
+		case strings.HasPrefix(arg, name+"="):
+			on = arg[len(name)+1:] != "false" && arg[len(name)+1:] != "0"
+		}
+	}
+	return on
 }
 
 // languageFrom resolves the language before the tree is built.

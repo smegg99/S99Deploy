@@ -4,11 +4,13 @@ go 1.27
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/joho/godotenv v1.5.1
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/smegg99/s99config v1.0.1
 	github.com/smegg99/s99logger v1.1.0
+	github.com/smegg99/s99term v1.0.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/text v0.38.0
 )
@@ -22,7 +24,6 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
@@ -74,7 +75,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/smegg99/s99locale v1.0.0 // indirect
-	github.com/smegg99/s99term v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

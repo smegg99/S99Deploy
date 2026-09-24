@@ -1,0 +1,21 @@
+ok:
+  description: State word for a step that finished.
+  value: ok
+failed:
+  description: State word for a step that did not finish.
+  value: błąd
+skipped:
+  description: State word for a step that had nothing to do.
+  value: pominięto
+waiting:
+  description: State word for a step that has not started.
+  value: czeka
+running:
+  description: State word for a step that is running now.
+  value: trwa
+warning:
+  description: State word for a line that reports something suspicious.
+  value: ostrzeżenie
+stale:
+  description: State word for output that no longer matches its source.
+  value: nieaktualne

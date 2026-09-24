@@ -5,8 +5,13 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/colorprofile"
+	"github.com/smegg99/s99logger"
+	"github.com/smegg99/s99term"
 
 	"github.com/smegg99/s99deploy/internal/deploy"
 	"github.com/smegg99/s99deploy/internal/deploy/deploytest"
@@ -23,9 +28,23 @@ func testOptions(t *testing.T, in string) (*rootOptions, *bytes.Buffer, *bytes.B
 
 	cfg, _, _, _, _ := deploytest.NewConfig(t)
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	words := messages.Localizer(messages.DefaultLocale)
+
+	off := false
+	console := s99term.New(s99term.Options{
+		Out: stderr, Env: []string{"LANG=C"}, Profile: colorprofile.NoTTY, Animate: &off,
+		Words: messages.StatusWords(words),
+	})
+	t.Cleanup(console.Close)
+
+	steps := NewStepper(console, words)
+	cfg.Progress = steps
 	return &rootOptions{
 		lang:     messages.DefaultLocale,
-		words:    messages.Localizer(messages.DefaultLocale),
+		color:    "never",
+		words:    words,
+		console:  console,
+		steps:    steps,
 		deployer: deploy.New(cfg),
 		in:       strings.NewReader(in),
 		out:      stdout,
@@ -142,5 +161,97 @@ func TestInterruptedRun(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "interrupted") {
 		t.Errorf("stderr = %q, want the interrupted line", stderr)
+	}
+}
+
+// --verbose is the only thing that lets a debug record reach the console.
+func TestVerboseLowersTheLogLevel(t *testing.T) {
+	// newRootOptions installs a process-wide default logger over a console this
+	// test then closes, so put a harmless one back before leaving.
+	t.Cleanup(func() {
+		s99logger.SetDefault(s99logger.New(s99logger.NewConsoleSink(io.Discard), s99logger.Options{}))
+	})
+
+	for _, verbose := range []bool{false, true} {
+		errOut := &bytes.Buffer{}
+		opts, err := newRootOptions(messages.DefaultLocale, "never", verbose,
+			strings.NewReader(""), &bytes.Buffer{}, errOut)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// newRootOptions calls s99logger.SetDefault, which is what makes this
+		// observable without threading the logger back out.
+		s99logger.Debug(s99logger.NewEvent(messages.KeyLogsBuilding))
+		opts.console.Close()
+
+		if got := strings.Contains(errOut.String(), "running a build command"); got != verbose {
+			t.Errorf("--verbose=%v: the debug record reached the console = %v, want %v\n%s",
+				verbose, got, verbose, errOut)
+		}
+	}
+}
+
+// --color is resolved before the tree exists, so a wrong value is a usage error.
+func TestProfileForMapsTheColorFlag(t *testing.T) {
+	words := messages.Localizer(messages.DefaultLocale)
+	for _, c := range []struct {
+		name    string
+		choice  string
+		want    colorprofile.Profile
+		wantErr string
+	}{
+		{name: "unset", choice: "", want: colorprofile.Unknown},
+		{name: "auto", choice: "auto", want: colorprofile.Unknown},
+		{name: "always", choice: "always", want: colorprofile.TrueColor},
+		{name: "never", choice: "never", want: colorprofile.NoTTY},
+		{name: "bogus", choice: "bogus", want: colorprofile.Unknown, wantErr: "--color bogus"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := profileFor(c.choice, words)
+
+			if got != c.want {
+				t.Errorf("profileFor(%q) = %v, want %v", c.choice, got, c.want)
+			}
+			switch {
+			case c.wantErr == "" && err != nil:
+				t.Errorf("profileFor(%q) returned %v, want no error", c.choice, err)
+			case c.wantErr != "" && err == nil:
+				t.Errorf("profileFor(%q) returned no error, want one naming the value", c.choice)
+			case c.wantErr != "" && !strings.Contains(err.Error(), c.wantErr):
+				t.Errorf("error = %q, want it to carry %q", err, c.wantErr)
+			}
+		})
+	}
+}
+
+// The resolved profile, not the environment, decides whether escapes are written.
+func TestConsoleHonoursTheResolvedProfile(t *testing.T) {
+	// newConsole hands s99term os.Environ(), so this also proves an explicit
+	// profile beats detection: a developer with NO_COLOR set in their shell
+	// still gets escapes out of --color always.
+	words := messages.Localizer(messages.DefaultLocale)
+	for _, c := range []struct {
+		name    string
+		profile colorprofile.Profile
+		want    bool
+	}{
+		{name: "always", profile: colorprofile.TrueColor, want: true},
+		{name: "never", profile: colorprofile.NoTTY},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			errOut := &bytes.Buffer{}
+			console := newConsole(errOut, c.profile, words)
+			console.Line(s99term.StatusOK, "deployed myapp")
+			console.Close()
+
+			got := strings.Contains(errOut.String(), "\x1b[")
+			if got != c.want {
+				t.Errorf("an escape reached the stream = %v, want %v: %q", got, c.want, errOut)
+			}
+			if !strings.Contains(errOut.String(), "deployed myapp") {
+				t.Errorf("the line lost its label: %q", errOut)
+			}
+		})
 	}
 }

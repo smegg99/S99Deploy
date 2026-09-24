@@ -91,6 +91,11 @@ invalidLanguage:
   placeholders:
     value: {type: string}
     supported: {type: string}
+invalidColor:
+  description: Usage error for an unsupported --color.
+  value: unsupported --color {value}, choose auto, always or never
+  placeholders:
+    value: {type: string}
 nextSteps:
   description: What install prints when it finishes.
   value: "\nNext:\n  1. fill in {root}/.env\n  2. sudo s99deploy up {name}\n"

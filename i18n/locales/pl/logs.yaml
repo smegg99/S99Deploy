@@ -19,6 +19,9 @@ building:
 restarting:
   description: 'Log event: the unit is being restarted.'
   value: restartowanie usługi
+healthCheck:
+  description: 'Log event: the deploy is waiting for the app to answer its health check.'
+  value: czekanie na sprawdzenie stanu
 deployed:
   description: 'Log event: the deploy finished and the app answered its health check.'
   value: wdrożono

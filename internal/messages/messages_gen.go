@@ -102,6 +102,18 @@ func CliCommandInterrupted(l *i18n.Localizer, p CliCommandInterruptedParams) str
 	return withData(l, "cli.command.interrupted", data)
 }
 
+// CliCommandInvalidColor Usage error for an unsupported --color.
+type CliCommandInvalidColorParams struct {
+	Value string
+}
+
+func CliCommandInvalidColor(l *i18n.Localizer, p CliCommandInvalidColorParams) string {
+	data := map[string]any{
+		"Value": p.Value,
+	}
+	return withData(l, "cli.command.invalidColor", data)
+}
+
 // CliCommandInvalidLanguage Usage error for an unsupported --lang.
 type CliCommandInvalidLanguageParams struct {
 	Supported string
@@ -255,6 +267,41 @@ func CliConfirmTypeToConfirm(l *i18n.Localizer, p CliConfirmTypeToConfirmParams)
 	return withData(l, "cli.confirm.typeToConfirm", data)
 }
 
+// CliStatusFailed State word for a step that did not finish.
+func CliStatusFailed(l *i18n.Localizer) string {
+	return plain(l, "cli.status.failed")
+}
+
+// CliStatusOk State word for a step that finished.
+func CliStatusOk(l *i18n.Localizer) string {
+	return plain(l, "cli.status.ok")
+}
+
+// CliStatusRunning State word for a step that is running now.
+func CliStatusRunning(l *i18n.Localizer) string {
+	return plain(l, "cli.status.running")
+}
+
+// CliStatusSkipped State word for a step that had nothing to do.
+func CliStatusSkipped(l *i18n.Localizer) string {
+	return plain(l, "cli.status.skipped")
+}
+
+// CliStatusStale State word for output that no longer matches its source.
+func CliStatusStale(l *i18n.Localizer) string {
+	return plain(l, "cli.status.stale")
+}
+
+// CliStatusWaiting State word for a step that has not started.
+func CliStatusWaiting(l *i18n.Localizer) string {
+	return plain(l, "cli.status.waiting")
+}
+
+// CliStatusWarning State word for a line that reports something suspicious.
+func CliStatusWarning(l *i18n.Localizer) string {
+	return plain(l, "cli.status.warning")
+}
+
 // LogsBuilding Log event: one build command from the manifest is running.
 func LogsBuilding(l *i18n.Localizer) string {
 	return plain(l, "logs.building")
@@ -278,6 +325,11 @@ func LogsCreatedEnv(l *i18n.Localizer) string {
 // LogsDeployed Log event: the deploy finished and the app answered its health check.
 func LogsDeployed(l *i18n.Localizer) string {
 	return plain(l, "logs.deployed")
+}
+
+// LogsHealthCheck Log event: the deploy is waiting for the app to answer its health check.
+func LogsHealthCheck(l *i18n.Localizer) string {
+	return plain(l, "logs.healthCheck")
 }
 
 // LogsInstalled Log event: install finished.

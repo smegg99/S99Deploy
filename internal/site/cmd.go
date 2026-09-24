@@ -5,10 +5,12 @@ package site
 import (
 	"context"
 	"io"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/smegg99/s99logger"
+	"github.com/smegg99/s99term"
 	"github.com/spf13/cobra"
 
 	"github.com/smegg99/s99deploy"
@@ -73,7 +75,14 @@ func newServeCmd(opts *siteOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log := s99logger.New(s99logger.NewConsoleSink(opts.errOut), s99logger.Options{
+			console := s99term.New(s99term.Options{
+				Out:   opts.errOut,
+				Env:   os.Environ(),
+				Words: messages.StatusWords(opts.words),
+			})
+			defer console.Close()
+
+			log := s99logger.New(console.Sink(), s99logger.Options{
 				Service:    "s99deploy-site",
 				MinLevel:   s99logger.LevelInfo,
 				Language:   opts.lang,
