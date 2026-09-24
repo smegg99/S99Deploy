@@ -21,6 +21,12 @@ import (
 // testOptions is the real tree over a faked box.
 func testOptions(t *testing.T, in string) (*rootOptions, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
+	return testOptionsOn(t, in, nil)
+}
+
+// testOptionsOn is testOptions over a box the caller changes first.
+func testOptionsOn(t *testing.T, in string, box func(*deploy.Config)) (*rootOptions, *bytes.Buffer, *bytes.Buffer) {
+	t.Helper()
 	// Without this the language comes from the developer's own shell, and every
 	// row of the exit-code table that asserts an English label fails on a Polish
 	// machine. S99DEPLOY_LANG is first in the precedence for exactly this.
@@ -39,6 +45,9 @@ func testOptions(t *testing.T, in string) (*rootOptions, *bytes.Buffer, *bytes.B
 
 	steps := NewStepper(console, words)
 	cfg.Progress = steps
+	if box != nil {
+		box(&cfg)
+	}
 	return &rootOptions{
 		lang:     messages.DefaultLocale,
 		color:    "never",

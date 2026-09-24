@@ -28,6 +28,13 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 	if err := d.requireRoot(); err != nil {
 		return Installed{}, err
 	}
+	// The unit's ExecStart is this binary's own path, and the unit hides some of
+	// the places that path can be. Checked here, before the first side effect,
+	// so a binary no service could exec leaves behind neither a clone nor an
+	// account, and the reader is told what to do instead of reading 203/EXEC.
+	if err := checkSelfPath(d.cfg.SelfPath); err != nil {
+		return Installed{}, err
+	}
 	if err := ctx.Err(); err != nil {
 		return Installed{}, err
 	}

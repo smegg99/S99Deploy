@@ -395,3 +395,35 @@ func TestInstallHandsTheRootOwnedPartsToTheConfiguredIds(t *testing.T) {
 		}
 	}
 }
+
+// The unit sets ProtectHome=true, so a binary in a home it hides can never be
+// exec'd, and systemd reports that as a bare 203/EXEC at the next restart.
+func TestInstallRefusesASelfPathTheUnitCannotReach(t *testing.T) {
+	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
+	clones(t, runner, map[string]string{".env.example": "TOKEN=\n"})
+	// The normal development case: depl run straight out of a checkout.
+	cfg.SelfPath = "/home/dev/S99Deploy/bin/depl"
+
+	_, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git")
+
+	if err == nil {
+		t.Fatal("install wrote a unit whose ExecStart the unit's own ProtectHome=true hides")
+	}
+	if !strings.Contains(err.Error(), cfg.SelfPath) {
+		t.Errorf("the error does not name the path: %v", err)
+	}
+	// Checked before the first side effect, so the refusal leaves no clone, no
+	// account and no unit behind.
+	if runner.Ran("git", "clone") {
+		t.Error("the clone ran before the check")
+	}
+	if len(accounts.Created) != 0 {
+		t.Errorf("accounts created: %v", accounts.Created)
+	}
+	if len(units.Enabled) != 0 {
+		t.Errorf("units enabled: %v", units.Enabled)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.UnitDir, "myapp.service")); !os.IsNotExist(err) {
+		t.Errorf("a unit was written: %v", err)
+	}
+}

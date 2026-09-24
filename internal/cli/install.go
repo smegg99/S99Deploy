@@ -3,10 +3,13 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/spf13/cobra"
 
+	"github.com/smegg99/s99deploy/internal/deploy"
 	"github.com/smegg99/s99deploy/internal/exit"
 	"github.com/smegg99/s99deploy/internal/messages"
 )
@@ -21,11 +24,26 @@ func newInstallCmd(opts *rootOptions) *cobra.Command {
 		RunE: exit.Work(func(cmd *cobra.Command, args []string) error {
 			installed, err := opts.deployer.Install(cmd.Context(), args[0])
 			if err != nil {
-				return err
+				return localizeSelfPath(err, opts.words)
 			}
 			fmt.Fprint(cmd.OutOrStdout(), messages.CliCommandNextSteps(opts.words,
 				messages.CliCommandNextStepsParams{Root: installed.Root, Name: installed.Name}))
 			return nil
 		}),
 	}
+}
+
+// localizeSelfPath replaces the deploy layer's own words for a binary the unit
+// could not exec with the catalog sentence, which names the remedy too.
+func localizeSelfPath(err error, words *i18n.Localizer) error {
+	var bad *deploy.SelfPathError
+	if !errors.As(err, &bad) {
+		return err
+	}
+	if bad.Blocked == "" {
+		return errors.New(messages.CliCommandSelfPathRelative(words,
+			messages.CliCommandSelfPathRelativeParams{Path: bad.Path}))
+	}
+	return errors.New(messages.CliCommandSelfPathProtected(words,
+		messages.CliCommandSelfPathProtectedParams{Path: bad.Path, Blocked: bad.Blocked}))
 }

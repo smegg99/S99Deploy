@@ -167,6 +167,32 @@ func CliCommandRunShort(l *i18n.Localizer) string {
 	return plain(l, "cli.command.runShort")
 }
 
+// CliCommandSelfPathProtected Error when install would write a unit whose ExecStart the unit's own ProtectHome=true hides.
+type CliCommandSelfPathProtectedParams struct {
+	Blocked string
+	Path    string
+}
+
+func CliCommandSelfPathProtected(l *i18n.Localizer, p CliCommandSelfPathProtectedParams) string {
+	data := map[string]any{
+		"Blocked": p.Blocked,
+		"Path":    p.Path,
+	}
+	return withData(l, "cli.command.selfPathProtected", data)
+}
+
+// CliCommandSelfPathRelative Error when install would write a unit whose ExecStart is not an absolute path.
+type CliCommandSelfPathRelativeParams struct {
+	Path string
+}
+
+func CliCommandSelfPathRelative(l *i18n.Localizer, p CliCommandSelfPathRelativeParams) string {
+	data := map[string]any{
+		"Path": p.Path,
+	}
+	return withData(l, "cli.command.selfPathRelative", data)
+}
+
 // CliCommandServeShort One-line description of the site's serve command.
 func CliCommandServeShort(l *i18n.Localizer) string {
 	return plain(l, "cli.command.serveShort")

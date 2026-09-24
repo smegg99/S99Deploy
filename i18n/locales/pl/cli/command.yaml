@@ -102,3 +102,20 @@ nextSteps:
   placeholders:
     root: {type: string}
     name: {type: string}
+selfPathProtected:
+  description: Error when install would write a unit whose ExecStart the unit's own ProtectHome=true hides.
+  value: >-
+    wygenerowana jednostka ustawia ProtectHome=true, więc nigdy nie uruchomi
+    {path} w katalogu {blocked}; zainstaluj najpierw depl w /usr/local/bin
+    (`just install`) i uruchom to polecenie ponownie
+  placeholders:
+    path: {type: string}
+    blocked: {type: string}
+selfPathRelative:
+  description: Error when install would write a unit whose ExecStart is not an absolute path.
+  value: >-
+    wygenerowana jednostka wymaga bezwzględnej ścieżki w ExecStart, a ten plik
+    binarny wskazuje na {path}; zainstaluj najpierw depl w /usr/local/bin
+    (`just install`) i uruchom to polecenie ponownie
+  placeholders:
+    path: {type: string}
