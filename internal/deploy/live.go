@@ -25,6 +25,8 @@ func LiveConfig() Config {
 		GoBinDir:       "/usr/local/go/bin",
 		SelfPath:       "/usr/local/bin/s99deploy",
 		Euid:           os.Geteuid(),
+		OwnerUID:       os.Geteuid(),
+		OwnerGID:       os.Getegid(),
 		Runner:         runner,
 		Accounts:       liveAccounts{runner: runner},
 		Units:          liveUnits{runner: runner},

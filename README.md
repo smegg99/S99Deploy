@@ -94,13 +94,20 @@ s99deploy run <root>                          # systemd ExecStart, not for peopl
 
 `install` clones the repo, reads the manifest, creates the `<name>` system
 account (no password, no sudo), lays out `/opt/<name>` with the checkout at
-`/opt/<name>/app`, seeds `/opt/<name>/.env` from `app/.env.example` at mode
-0600, and installs and enables the unit. It is safe to rerun. It refuses to
-adopt an existing account whose home is not `/opt/<name>`, because adopting one
-is how a later `--purge` deletes the wrong directory; it refuses a name that
+`/opt/<name>/app` and the account's home at `/opt/<name>/home` at mode 0700,
+seeds `/opt/<name>/.env` from `app/.env.example` at mode 0600, and installs and
+enables the unit. It is safe to rerun. It refuses to adopt an existing account
+whose home is not `/opt/<name>`, because adopting one is how a later `--purge`
+deletes the wrong directory; it refuses a name that
 already has a unit somewhere on systemd's search path, and a unit file it did
 not write itself. `/opt/<name>` stays root-owned, and `.env` root-owned at
 mode 0600; a rerun takes both back if an older install left them to the account.
+The account owns `app/` and `home/` inside it. `home/` is the `HOME` every build
+command and the service itself run with: `go build` writes its build cache
+there, `pnpm` and `npm` their `~/.cache` and `~/.local`, and a `HOME` the
+account cannot write fails all of them. passwd still names `/opt/<name>` as the
+account's home, because that is the directory `--purge` checks before it
+deletes.
 
 `up` pulls `--ff-only`, rereads the manifest, loads `/opt/<name>/.env`, checks
 `require_env`, runs the build commands as the service account, restarts the
@@ -147,10 +154,12 @@ sudo --preserve-env=SSH_AUTH_SOCK s99deploy install git@github.com:smegg99/MyApp
 `install` checks for the socket before it clones an SSH URL and tells you this
 if it is missing, rather than hanging on a prompt. Later pulls run as the
 service account, which needs its own read-only deploy key in
-`/opt/<name>/.ssh`. `/opt/<name>` and its `.env` are root-owned so the service
-cannot read or replace the secrets, so create that `.ssh` yourself and give it
-to the account (`install -d -o <name> -g <name> -m 0700 /opt/<name>/.ssh`), and
-note the service writes only under `/opt/<name>/app`. Both
+`/opt/<name>/.ssh`. OpenSSH expands `~` from passwd, not from `HOME`, so the key
+belongs there and not under `/opt/<name>/home`; git's own `.gitconfig` is read
+from `HOME`. `/opt/<name>` and its `.env` are root-owned so the service cannot
+read or replace the secrets, so create that `.ssh` yourself and give it to the
+account (`install -d -o <name> -g <name> -m 0700 /opt/<name>/.ssh`), and note
+the service writes only under `/opt/<name>/app` and `/opt/<name>/home`. Both
 the clone and the pulls run with `GIT_TERMINAL_PROMPT=0` and
 `ssh -o BatchMode=yes`, so a missing key fails in a second instead of waiting
 for input nothing will type.
@@ -160,7 +169,8 @@ for input nothing will type.
 [`internal/deploy/unit.service.tmpl`](internal/deploy/unit.service.tmpl) is the
 one unit every app gets. It runs as `User=<name>` with `NoNewPrivileges`,
 private `/tmp` and `/dev`, a read-only `/usr` and `/etc` (`ProtectSystem=strict`)
-with `/opt/<name>/app` as the only writable path, no access to other users' home
+with `/opt/<name>/app` and `/opt/<name>/home` as the only writable paths, no
+access to other users' home
 directories, no kernel tunables, no kernel modules, no control-group writes, no
 namespaces, no `personality(2)` changes, and no writable-executable memory.
 `MemoryDenyWriteExecute=true` means an app that runs a JIT under systemd will

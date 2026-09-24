@@ -32,12 +32,18 @@ func (d *Deployer) Up(ctx context.Context, name string, timeout time.Duration) e
 		return fmt.Errorf("no checkout at %s -- run `s99deploy install <git-url>` first", appDir)
 	}
 
+	// Not passwd's home: that is the app root, which is root's, and a build
+	// whose HOME it cannot write fails at its first command.
+	home := accountHome(root)
+	if _, err := os.Stat(home); err != nil {
+		return fmt.Errorf("no home at %s -- run `s99deploy install <git-url>` again", home)
+	}
 	account, err := d.cfg.Accounts.Lookup(name)
 	if err != nil {
 		return err
 	}
 	as := AsUser{
-		Name: name, Home: account.Home, Dir: appDir,
+		Name: name, Home: home, Dir: appDir,
 		UID: account.UID, GID: account.GID, Groups: account.Groups,
 	}
 

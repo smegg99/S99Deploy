@@ -32,13 +32,19 @@ type Config struct {
 	// SystemUnitDirs are the other places systemd finds units, checked so a new
 	// app cannot shadow one of them. Empty in tests, which own their UnitDir.
 	SystemUnitDirs []string
-	Euid           int
-	Runner         Runner
-	Accounts       Accounts
-	Units          Units
-	Prober         Prober
-	Progress       Progress
-	Log            *s99logger.Logger
+	// Euid gates the privileged flows. OwnerUID and OwnerGID are who install
+	// hands the root-owned parts to: the effective ids on a box, so a
+	// setuid-root binary does not hand them to the invoking user, and the
+	// test's own ids where a chown to root would be refused.
+	Euid     int
+	OwnerUID int
+	OwnerGID int
+	Runner   Runner
+	Accounts Accounts
+	Units    Units
+	Prober   Prober
+	Progress Progress
+	Log      *s99logger.Logger
 }
 
 // Deployer runs the flows against one Config.
@@ -57,6 +63,10 @@ func New(cfg Config) *Deployer {
 
 // Root is /opt/<name>, the one directory this tool owns per app.
 func (d *Deployer) Root(name string) string { return filepath.Join(d.cfg.OptDir, name) }
+
+// accountHome is the account's writable home inside the root-owned app root.
+// The unit sets the same path through Environment=HOME.
+func accountHome(root string) string { return filepath.Join(root, "home") }
 
 // unitPath is where the generated unit for name lives.
 func (d *Deployer) unitPath(name string) string {

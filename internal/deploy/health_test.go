@@ -5,6 +5,7 @@ package deploy_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,7 +170,8 @@ func TestUpRefusesABadName(t *testing.T) {
 	}
 }
 
-// git reads .gitconfig and .ssh from HOME, which is the account's, not /opt/<name>.
+// git reads .gitconfig from HOME, and every command the account runs gets the
+// home install laid out for it, never root's and never the app root.
 func TestUpRunsWithTheAccountsOwnHome(t *testing.T) {
 	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
 	clones(t, runner, nil)
@@ -177,27 +179,89 @@ func TestUpRunsWithTheAccountsOwnHome(t *testing.T) {
 	if _, err := d.Install(context.Background(), "https://example.com/myapp.git"); err != nil {
 		t.Fatal(err)
 	}
-	// A home that is not the app root, which is what the old code passed.
-	account := accounts.Users["myapp"]
-	account.Home = filepath.Join(t.TempDir(), "home", "myapp")
-	accounts.Users["myapp"] = account
+	// passwd names the app root, which is root's: it is the directory --purge
+	// checks before it deletes, not a home anything may write.
+	if home := accounts.Users["myapp"].Home; home != filepath.Join(cfg.OptDir, "myapp") {
+		t.Fatalf("the account's passwd home is %s, want the app root", home)
+	}
 	units.States["myapp"] = deploy.UnitState{Active: "active", InvocationID: "first"}
 
 	if err := d.Up(context.Background(), "myapp", time.Second); err != nil {
 		t.Fatal(err)
 	}
 
+	want := filepath.Join(cfg.OptDir, "myapp", "home")
 	var seen int
 	for _, call := range runner.Calls {
 		if call.As.Name == "" {
 			continue
 		}
 		seen++
-		if call.As.Home != account.Home {
-			t.Errorf("%q ran with HOME=%s, want %s", call.Command, call.As.Home, account.Home)
+		if call.As.Home != want {
+			t.Errorf("%q ran with HOME=%s, want %s", call.Command, call.As.Home, want)
 		}
 	}
 	if seen == 0 {
 		t.Fatal("nothing ran as the account")
+	}
+}
+
+// Every build tool writes under HOME: `go build` its build cache, pnpm and npm
+// their ~/.cache and ~/.local. A HOME the account cannot write fails all of
+// them at the first command, so this asserts the environment the runner is
+// handed, which is the only thing a fake that starts no process can be wrong
+// about.
+func TestBuildEnvHomeIsADirectoryTheAccountCanWrite(t *testing.T) {
+	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
+	clones(t, runner, nil)
+	// A group this process is in but is not running as, so the account's
+	// ownership is something the test can tell root's from.
+	altGID, hasAlt := deploytest.AltGID(t)
+	if hasAlt {
+		accounts.GID = altGID
+	}
+	d := deploy.New(cfg)
+	if _, err := d.Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+	units.States["myapp"] = deploy.UnitState{Active: "active", InvocationID: "first"}
+	if err := d.Up(context.Background(), "myapp", time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	var build *deploytest.Call
+	for i, call := range runner.Calls {
+		if call.Command == "go build -o bin/myapp ." {
+			build = &runner.Calls[i]
+		}
+	}
+	if build == nil {
+		t.Fatal("the build command never ran")
+	}
+
+	// The runner derives HOME from AsUser, so the child environment is what the
+	// build would really have seen.
+	home := deploy.LastEnvValueForTest(deploy.AsUserEnvForTest(build.As, build.Env), "HOME")
+	if home == "" {
+		t.Fatal("the build environment carries no HOME")
+	}
+	root := filepath.Join(cfg.OptDir, "myapp")
+	if home == root {
+		t.Fatalf("HOME = %s, the root-owned directory that holds .env", home)
+	}
+	info, err := os.Lstat(home)
+	if err != nil {
+		t.Fatalf("HOME %s: %v", home, err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("HOME %s is %s, not a directory", home, info.Mode().Type())
+	}
+	if info.Mode().Perm()&0o700 != 0o700 {
+		t.Errorf("HOME %s is mode %v, which its owner cannot write", home, info.Mode().Perm())
+	}
+	stat := lstat(t, home)
+	if stat.Uid != accounts.UID || stat.Gid != accounts.GID {
+		t.Errorf("HOME %s is owned by %d:%d, want the account %d:%d",
+			home, stat.Uid, stat.Gid, accounts.UID, accounts.GID)
 	}
 }

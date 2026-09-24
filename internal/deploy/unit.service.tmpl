@@ -12,6 +12,12 @@ Group={{.Name}}
 WorkingDirectory={{.Root}}/app
 ExecStart={{.SelfPath}} run {{.Root}}
 
+# systemd takes $HOME from passwd, which is the root-owned app root, so the
+# service is given the same writable home the build commands run with.
+# Environment= beats what the service manager derives; EnvironmentFile= below
+# beats Environment=, so a deliberate HOME in .env still wins.
+Environment=HOME={{.Root}}/home
+
 # Secrets are root-owned, outside the checkout, so the account cannot read or
 # replace them and a git operation can never touch them.
 EnvironmentFile={{.Root}}/.env
@@ -36,9 +42,9 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 
 # Under ProtectSystem=strict systemd refuses to start if a ReadWritePaths entry
-# is missing. The account writes only the checkout, which exists after a fresh
-# clone, so the root that holds .env stays read-only to the service.
-ReadWritePaths={{.Root}}/app
+# is missing. The account writes only the checkout and its own home, both of
+# which install lays out, so the root that holds .env stays read-only.
+ReadWritePaths={{.Root}}/app {{.Root}}/home
 
 [Install]
 WantedBy=multi-user.target

@@ -76,15 +76,19 @@ func (d *Deployer) Install(ctx context.Context, gitURL string) (Installed, error
 		return Installed{}, err
 	}
 	// root and .env are root's, so the account cannot swap the secrets that
-	// systemd reads back into its environment; the account owns only app/.
-	// useradd --create-home makes root the account's, so this reclaims it.
+	// systemd reads back into its environment; the account owns app/ and the
+	// home/ below. useradd --create-home makes root the account's, so this
+	// reclaims it.
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return Installed{}, err
 	}
-	if err := os.Chown(root, os.Getuid(), os.Getgid()); err != nil {
+	if err := os.Chown(root, d.cfg.OwnerUID, d.cfg.OwnerGID); err != nil {
 		return Installed{}, err
 	}
 	if err := os.Chmod(root, 0o755); err != nil {
+		return Installed{}, err
+	}
+	if err := ensureHome(root, account); err != nil {
 		return Installed{}, err
 	}
 
@@ -163,6 +167,38 @@ func (d *Deployer) writeUnit(name, unit string) error {
 	return file.Close()
 }
 
+// ensureHome lays out the account's writable home inside the root-owned tree.
+func ensureHome(root string, account Account) error {
+	// Every build tool writes under HOME: `go build` its build cache, pnpm and
+	// npm their ~/.cache and ~/.local. The app root is root's, and passwd keeps
+	// naming it as the account's home because that is the directory --purge
+	// checks before it deletes, so the writable home is this one inside it. It
+	// is laid out through an os.Root and refused when it is not a directory, so
+	// an older install that left the root to the account cannot have left a
+	// link here.
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	home := accountHome(root)
+	switch info, err := dir.Lstat("home"); {
+	case err == nil && !info.IsDir():
+		return fmt.Errorf("%s is %s, not a directory", home, info.Mode().Type())
+	case os.IsNotExist(err):
+		if err := dir.Mkdir("home", 0o700); err != nil {
+			return err
+		}
+	case err != nil:
+		return err
+	}
+	if err := dir.Lchown("home", int(account.UID), int(account.GID)); err != nil {
+		return fmt.Errorf("chown %s: %w", home, err)
+	}
+	return dir.Chmod("home", 0o700)
+}
+
 // ensureAccount creates the service account, and refuses to adopt a foreign one.
 func (d *Deployer) ensureAccount(ctx context.Context, name, home string) (Account, error) {
 	// Adopting an account whose home is elsewhere is how a later --purge deletes
@@ -205,7 +241,7 @@ func (d *Deployer) seedEnv(root string) error {
 	case err == nil && !info.Mode().IsRegular():
 		return fmt.Errorf("%s is %s, not a regular file", envPath, info.Mode().Type())
 	case err == nil:
-		return lockDownEnv(dir, envPath)
+		return lockDownEnv(dir, envPath, d.cfg.OwnerUID, d.cfg.OwnerGID)
 	case !os.IsNotExist(err):
 		return err
 	}
@@ -226,7 +262,7 @@ func (d *Deployer) seedEnv(root string) error {
 		return err
 	}
 	d.cfg.Log.Info(s99logger.NewEvent(EventCreatedEnv, s99logger.String("path", envPath)))
-	return lockDownEnv(dir, envPath)
+	return lockDownEnv(dir, envPath, d.cfg.OwnerUID, d.cfg.OwnerGID)
 }
 
 // readEnvExample reads app/.env.example through the app root, only when it is a regular file with one link.
@@ -254,7 +290,7 @@ func readEnvExample(dir *os.Root, root string) ([]byte, error) {
 }
 
 // lockDownEnv keeps .env root's at 0600, refusing a link or a multiply-linked file.
-func lockDownEnv(dir *os.Root, envPath string) error {
+func lockDownEnv(dir *os.Root, envPath string, uid, gid int) error {
 	file, err := dir.OpenFile(".env", os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", envPath, err)
@@ -271,7 +307,7 @@ func lockDownEnv(dir *os.Root, envPath string) error {
 		return fmt.Errorf("%s has %d hard links, want 1", envPath, st.Nlink)
 	}
 	// Reclaimed to root, so an old install's account-owned .env is taken back.
-	if err := file.Chown(os.Getuid(), os.Getgid()); err != nil {
+	if err := file.Chown(uid, gid); err != nil {
 		return fmt.Errorf("chown %s: %w", envPath, err)
 	}
 	return file.Chmod(0o600)

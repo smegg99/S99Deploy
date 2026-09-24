@@ -90,7 +90,8 @@ func TestInstallLaysOutTheApp(t *testing.T) {
 	}
 	for _, want := range []string{
 		"User=myapp", "ExecStart=/usr/local/bin/s99deploy run " + root,
-		"ReadWritePaths=" + root + "/app", "EnvironmentFile=" + root + "/.env",
+		"ReadWritePaths=" + root + "/app " + root + "/home",
+		"Environment=HOME=" + root + "/home", "EnvironmentFile=" + root + "/.env",
 	} {
 		if !strings.Contains(string(unit), want) {
 			t.Errorf("unit is missing %q:\n%s", want, unit)
@@ -143,7 +144,7 @@ func lstat(t *testing.T, path string) *syscall.Stat_t {
 
 // Install is safe to rerun: every step skips what already exists.
 func TestInstallIsRerunnable(t *testing.T) {
-	cfg, runner, _, units, _ := deploytest.NewConfig(t)
+	cfg, runner, accounts, units, _ := deploytest.NewConfig(t)
 	clones(t, runner, nil)
 	d := deploy.New(cfg)
 
@@ -165,6 +166,20 @@ func TestInstallIsRerunnable(t *testing.T) {
 		if strings.HasPrefix(entry.Name(), ".s99deploy-install-") {
 			t.Errorf("a temp checkout survived: %s", entry.Name())
 		}
+	}
+	// The second install finds the home the first laid out and leaves it as it
+	// was, rather than failing on the directory that is already there.
+	home := filepath.Join(cfg.OptDir, "myapp", "home")
+	info, err := os.Lstat(home)
+	if err != nil {
+		t.Fatalf("the rerun lost %s: %v", home, err)
+	}
+	if !info.IsDir() || info.Mode().Perm() != 0o700 {
+		t.Errorf("%s is %v, want a 0700 directory", home, info.Mode())
+	}
+	if stat := lstat(t, home); stat.Uid != accounts.UID || stat.Gid != accounts.GID {
+		t.Errorf("%s is owned by %d:%d, want the account %d:%d",
+			home, stat.Uid, stat.Gid, accounts.UID, accounts.GID)
 	}
 }
 
@@ -352,5 +367,31 @@ func TestInstallRefusesAHostileEnvExample(t *testing.T) {
 				t.Errorf(".env carries the file the link pointed at: %q", env)
 			}
 		})
+	}
+}
+
+// Under a setuid-root binary the real uid is the invoking user's, so reading it
+// would hand /opt/<name> and its secrets to whoever ran the command.
+func TestInstallHandsTheRootOwnedPartsToTheConfiguredIds(t *testing.T) {
+	cfg, runner, accounts, _, _ := deploytest.NewConfig(t)
+	clones(t, runner, map[string]string{".env.example": "TOKEN=\n"})
+	altGID, hasAlt := deploytest.AltGID(t)
+	if !hasAlt {
+		t.Skip("no second group this process may chown to")
+	}
+	// Root's side is the alternate group here, the account's is this process's
+	// own, so an install that read the process's ids gets it backwards.
+	cfg.OwnerGID = int(altGID)
+	accounts.GID = uint32(os.Getgid())
+
+	if _, err := deploy.New(cfg).Install(context.Background(), "https://example.com/myapp.git"); err != nil {
+		t.Fatal(err)
+	}
+
+	root := filepath.Join(cfg.OptDir, "myapp")
+	for _, path := range []string{root, filepath.Join(root, ".env")} {
+		if stat := lstat(t, path); stat.Gid != altGID {
+			t.Errorf("%s has gid %d, want the configured %d", path, stat.Gid, altGID)
+		}
 	}
 }
