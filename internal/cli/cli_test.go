@@ -10,14 +10,22 @@ import (
 
 	"github.com/smegg99/s99deploy/internal/deploy"
 	"github.com/smegg99/s99deploy/internal/deploy/deploytest"
+	"github.com/smegg99/s99deploy/internal/messages"
 )
 
 // testOptions is the real tree over a faked box.
 func testOptions(t *testing.T, in string) (*rootOptions, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
+	// Without this the language comes from the developer's own shell, and every
+	// row of the exit-code table that asserts an English label fails on a Polish
+	// machine. S99DEPLOY_LANG is first in the precedence for exactly this.
+	t.Setenv("S99DEPLOY_LANG", messages.DefaultLocale)
+
 	cfg, _, _, _, _ := deploytest.NewConfig(t)
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 	return &rootOptions{
+		lang:     messages.DefaultLocale,
+		words:    messages.Localizer(messages.DefaultLocale),
 		deployer: deploy.New(cfg),
 		in:       strings.NewReader(in),
 		out:      stdout,

@@ -4,10 +4,13 @@ package cli_test
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/smegg99/s99deploy/internal/messages"
 )
 
 // The table again, through a real process.
@@ -37,6 +40,7 @@ func TestExitCodesFromTheCompiledBinary(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			cmd := exec.Command(binary, c.args...)
+			cmd.Env = append(os.Environ(), "S99DEPLOY_LANG="+messages.DefaultLocale)
 			out, err := cmd.CombinedOutput()
 
 			code := 0

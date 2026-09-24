@@ -1,0 +1,36 @@
+cloning:
+  description: 'Log event: the repository is being cloned.'
+  value: klonowanie repozytorium
+checkoutPresent:
+  description: 'Log event: install found a checkout already in place and kept it.'
+  value: checkout już istnieje
+createdEnv:
+  description: 'Log event: the environment file was created on first install.'
+  value: utworzono plik środowiska
+installed:
+  description: 'Log event: install finished.'
+  value: zainstalowano
+pulling:
+  description: 'Log event: the checkout is being fast-forwarded.'
+  value: pobieranie zmian
+building:
+  description: 'Log event: one build command from the manifest is running.'
+  value: uruchamianie polecenia budowania
+restarting:
+  description: 'Log event: the unit is being restarted.'
+  value: restartowanie usługi
+deployed:
+  description: 'Log event: the deploy finished and the app answered its health check.'
+  value: wdrożono
+purged:
+  description: 'Log event: the unit, the tree and the account are gone.'
+  value: usunięto wszystko
+uninstalled:
+  description: 'Log event: the unit is gone and the tree was kept.'
+  value: odinstalowano
+listening:
+  description: 'Log event: the site is listening.'
+  value: nasłuchiwanie
+stopping:
+  description: 'Log event: a signal arrived and the site stopped accepting.'
+  value: zamykanie

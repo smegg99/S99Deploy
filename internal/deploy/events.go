@@ -2,16 +2,18 @@
 
 package deploy
 
+import "github.com/smegg99/s99deploy/internal/messages"
+
 // The log event ids, each a catalog key the logger's translator renders.
 const (
-	EventCloning         = "logs.cloning"
-	EventCheckoutPresent = "logs.checkoutPresent"
-	EventCreatedEnv      = "logs.createdEnv"
-	EventInstalled       = "logs.installed"
-	EventPulling         = "logs.pulling"
-	EventBuilding        = "logs.building"
-	EventRestarting      = "logs.restarting"
-	EventDeployed        = "logs.deployed"
-	EventPurged          = "logs.purged"
-	EventUninstalled     = "logs.uninstalled"
+	EventCloning         = messages.KeyLogsCloning
+	EventCheckoutPresent = messages.KeyLogsCheckoutPresent
+	EventCreatedEnv      = messages.KeyLogsCreatedEnv
+	EventInstalled       = messages.KeyLogsInstalled
+	EventPulling         = messages.KeyLogsPulling
+	EventBuilding        = messages.KeyLogsBuilding
+	EventRestarting      = messages.KeyLogsRestarting
+	EventDeployed        = messages.KeyLogsDeployed
+	EventPurged          = messages.KeyLogsPurged
+	EventUninstalled     = messages.KeyLogsUninstalled
 )

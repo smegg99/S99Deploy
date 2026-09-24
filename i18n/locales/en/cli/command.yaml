@@ -1,0 +1,99 @@
+rootShort:
+  description: One-line description of s99deploy.
+  value: Deploy manifest-carrying apps to /opt under systemd
+rootLong:
+  description: The paragraph shown above the command list.
+  value: >-
+    One deploy CLI for every same-shape app on the box. Each app repo carries a
+    deploy.json manifest; s99deploy owns install, up, run and uninstall around
+    that manifest.
+installShort:
+  description: One-line description of the install command.
+  value: 'One-time app setup: clone, account, systemd unit'
+upShort:
+  description: One-line description of the up command.
+  value: 'Deploy: pull, build, restart, health check'
+runShort:
+  description: One-line description of the run command, which systemd calls.
+  value: Exec the app from its manifest (systemd ExecStart)
+uninstallShort:
+  description: One-line description of the uninstall command.
+  value: Remove the unit; --purge also removes /opt/<name> and the account
+siteShort:
+  description: One-line description of the site binary.
+  value: Serve the s99deploy binary, its checksum and its install script
+serveShort:
+  description: One-line description of the site's serve command.
+  value: Listen on the configured address until interrupted
+helpShort:
+  description: Description of cobra's built-in help command.
+  value: Show help for any command
+completionShort:
+  description: Description of cobra's built-in completion command.
+  value: Generate the shell completion script
+shellShort:
+  description: Description of one completion subcommand.
+  value: Generate completion for {shell}
+  placeholders:
+    shell: {type: string}
+langFlag:
+  description: Help for --lang.
+  value: language this command speaks
+colorFlag:
+  description: Help for --color.
+  value: 'when to colour the output: auto, always, never'
+verboseFlag:
+  description: Help for --verbose.
+  value: log every step, not just the ones that matter
+timeoutFlag:
+  description: Help for up --timeout.
+  value: how long to wait for the health check, overriding check.timeout_seconds
+purgeFlag:
+  description: Help for uninstall --purge.
+  value: also remove /opt/<name> and the service account
+yesFlag:
+  description: Help for uninstall --yes.
+  value: skip the typed-name confirmation
+configFlag:
+  description: Help for the site's --config.
+  value: path to the site config
+helpFlag:
+  description: Help for cobra's --help.
+  value: show help for this command
+versionFlag:
+  description: Help for cobra's --version.
+  value: show the version
+usage:
+  description: The Usage label in cobra's help template.
+  value: 'Usage:'
+commands:
+  description: The available-commands label in cobra's help template.
+  value: 'Available Commands:'
+flags:
+  description: The local-flags label in cobra's help template.
+  value: 'Flags:'
+globalFlags:
+  description: The inherited-flags label in cobra's help template.
+  value: 'Global Flags:'
+helpHint:
+  description: The closing line of the help template.
+  value: Use "{command}" for more information about a command.
+  placeholders:
+    command: {type: string}
+interrupted:
+  description: The single line an interrupted run prints.
+  value: '{name}: interrupted'
+  placeholders:
+    name: {type: string}
+invalidLanguage:
+  description: Usage error for an unsupported --lang.
+  value: unsupported --lang {value}, choose one of {supported}
+  placeholders:
+    value: {type: string}
+    supported: {type: string}
+nextSteps:
+  description: What install prints when it finishes.
+  value: "\nNext:\n  1. fill in {root}/.env\n  2. sudo s99deploy up {name}\n"
+  placeholders:
+    root: {type: string}
+    name: {type: string}

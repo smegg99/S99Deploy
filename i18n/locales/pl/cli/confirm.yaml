@@ -1,0 +1,19 @@
+removesService:
+  description: First line of the uninstall confirmation.
+  value: To wyłącza i usuwa usługę {name}.
+  placeholders:
+    name: {type: string}
+purgeAlso:
+  description: Second line, shown only for --purge.
+  value: '--purge usuwa także {root} (checkout, .env, logi) oraz konto {name}.'
+  placeholders:
+    root: {type: string}
+    name: {type: string}
+typeToConfirm:
+  description: The prompt itself; the reader types the app name.
+  value: 'Wpisz {name}, aby potwierdzić: '
+  placeholders:
+    name: {type: string}
+aborted:
+  description: Error when the typed name did not match.
+  value: przerwano

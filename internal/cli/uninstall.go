@@ -7,6 +7,7 @@ import (
 
 	"github.com/smegg99/s99deploy/internal/deploy"
 	"github.com/smegg99/s99deploy/internal/exit"
+	"github.com/smegg99/s99deploy/internal/messages"
 )
 
 // uninstallFlags is uninstall's own flag set.
@@ -17,7 +18,7 @@ func newUninstallCmd(opts *rootOptions) *cobra.Command {
 	flags := &uninstallFlags{}
 	cmd := &cobra.Command{
 		Use:   "uninstall <name>",
-		Short: "Remove the unit; --purge also removes /opt/<name> and the account",
+		Short: messages.CliCommandUninstallShort(opts.words),
 		Example: "  sudo s99deploy uninstall myapp\n" +
 			"  sudo s99deploy uninstall --purge myapp",
 		Args: cobra.ExactArgs(1),
@@ -29,7 +30,7 @@ func newUninstallCmd(opts *rootOptions) *cobra.Command {
 				return err
 			}
 			if !flags.yes {
-				if err := confirmName(cmd.InOrStdin(), cmd.OutOrStdout(),
+				if err := confirmName(cmd.InOrStdin(), cmd.OutOrStdout(), opts.words,
 					name, opts.deployer.Root(name), flags.purge); err != nil {
 					return err
 				}
@@ -37,7 +38,7 @@ func newUninstallCmd(opts *rootOptions) *cobra.Command {
 			return opts.deployer.Uninstall(cmd.Context(), name, flags.purge)
 		}),
 	}
-	cmd.Flags().BoolVar(&flags.purge, "purge", false, "also remove /opt/<name> and the service account")
-	cmd.Flags().BoolVar(&flags.yes, "yes", false, "skip the typed-name confirmation")
+	cmd.Flags().BoolVar(&flags.purge, "purge", false, messages.CliCommandPurgeFlag(opts.words))
+	cmd.Flags().BoolVar(&flags.yes, "yes", false, messages.CliCommandYesFlag(opts.words))
 	return cmd
 }

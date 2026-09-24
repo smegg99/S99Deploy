@@ -1,0 +1,99 @@
+rootShort:
+  description: One-line description of s99deploy.
+  value: Wdrażaj aplikacje z manifestem do /opt pod systemd
+rootLong:
+  description: The paragraph shown above the command list.
+  value: >-
+    Jedno narzędzie wdrożeniowe dla każdej aplikacji o tym samym kształcie na
+    serwerze. Każde repozytorium niesie manifest deploy.json; s99deploy obsługuje
+    wokół niego install, up, run i uninstall.
+installShort:
+  description: One-line description of the install command.
+  value: 'Jednorazowa konfiguracja: klon, konto, jednostka systemd'
+upShort:
+  description: One-line description of the up command.
+  value: 'Wdrożenie: pobierz zmiany, zbuduj, zrestartuj, sprawdź stan'
+runShort:
+  description: One-line description of the run command, which systemd calls.
+  value: Uruchom aplikację z jej manifestu (ExecStart systemd)
+uninstallShort:
+  description: One-line description of the uninstall command.
+  value: Usuń jednostkę; --purge usuwa też /opt/<name> i konto
+siteShort:
+  description: One-line description of the site binary.
+  value: Serwuj binarkę s99deploy, jej sumę kontrolną i skrypt instalacyjny
+serveShort:
+  description: One-line description of the site's serve command.
+  value: Nasłuchuj pod skonfigurowanym adresem do przerwania
+helpShort:
+  description: Description of cobra's built-in help command.
+  value: Pokaż pomoc dla dowolnego polecenia
+completionShort:
+  description: Description of cobra's built-in completion command.
+  value: Wygeneruj skrypt uzupełniania dla powłoki
+shellShort:
+  description: Description of one completion subcommand.
+  value: Wygeneruj uzupełnianie dla {shell}
+  placeholders:
+    shell: {type: string}
+langFlag:
+  description: Help for --lang.
+  value: język, w którym mówi to polecenie
+colorFlag:
+  description: Help for --color.
+  value: 'kiedy kolorować wyjście: auto, always, never'
+verboseFlag:
+  description: Help for --verbose.
+  value: zapisuj każdy krok, nie tylko te istotne
+timeoutFlag:
+  description: Help for up --timeout.
+  value: jak długo czekać na sprawdzenie stanu, zamiast check.timeout_seconds
+purgeFlag:
+  description: Help for uninstall --purge.
+  value: usuń także /opt/<name> i konto usługi
+yesFlag:
+  description: Help for uninstall --yes.
+  value: pomiń potwierdzenie przez wpisanie nazwy
+configFlag:
+  description: Help for the site's --config.
+  value: ścieżka do pliku konfiguracyjnego
+helpFlag:
+  description: Help for cobra's --help.
+  value: pokaż pomoc dla tego polecenia
+versionFlag:
+  description: Help for cobra's --version.
+  value: pokaż wersję
+usage:
+  description: The Usage label in cobra's help template.
+  value: 'Użycie:'
+commands:
+  description: The available-commands label in cobra's help template.
+  value: 'Dostępne polecenia:'
+flags:
+  description: The local-flags label in cobra's help template.
+  value: 'Opcje:'
+globalFlags:
+  description: The inherited-flags label in cobra's help template.
+  value: 'Opcje globalne:'
+helpHint:
+  description: The closing line of the help template.
+  value: Użyj "{command}", aby dowiedzieć się więcej o poleceniu.
+  placeholders:
+    command: {type: string}
+interrupted:
+  description: The single line an interrupted run prints.
+  value: '{name}: przerwano'
+  placeholders:
+    name: {type: string}
+invalidLanguage:
+  description: Usage error for an unsupported --lang.
+  value: nieobsługiwany --lang {value}, wybierz jeden z {supported}
+  placeholders:
+    value: {type: string}
+    supported: {type: string}
+nextSteps:
+  description: What install prints when it finishes.
+  value: "\nDalej:\n  1. uzupełnij {root}/.env\n  2. sudo s99deploy up {name}\n"
+  placeholders:
+    root: {type: string}
+    name: {type: string}

@@ -6,7 +6,7 @@ default:
     @just --list
 
 # Every check that gates a commit.
-check: check-fmt vet test build check-cue check-manifests check-version
+check: check-fmt vet test build check-cue check-manifests check-locales check-version
 
 # Fail when any Go file is not gofmt clean. Never rewrites.
 check-fmt:
@@ -54,6 +54,14 @@ gen-types:
         go tool cue exp gengotypes .
         gofmt -s -w cue_types_*_gen.go
     done
+
+# Rebuild the locale bundle from its canonical source.
+locales:
+    go tool loc build -c i18n/config.cue
+
+# Fail when the committed locale bundle drifts from its source.
+check-locales:
+    go tool loc check -c i18n/config.cue
 
 # Fail when the committed CUE-generated Go drifts from the schemas.
 check-cue:
