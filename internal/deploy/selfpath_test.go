@@ -22,6 +22,11 @@ func TestCheckSelfPath(t *testing.T) {
 		{path: "/home/dev/S99Deploy/bin/depl", blocked: "/home", refused: true},
 		{path: "/root/S99Deploy/bin/depl", blocked: "/root", refused: true},
 		{path: "/run/user/1000/depl", blocked: "/run/user", refused: true},
+		// PrivateTmp=true gives the service its own empty /tmp and /var/tmp, so
+		// a binary left in either is hidden the same way ProtectHome hides /home.
+		{path: "/tmp/depl", blocked: "/tmp", refused: true},
+		{path: "/var/tmp/depl", blocked: "/var/tmp", refused: true},
+		{path: "/tmpfiles/bin/depl"},
 		// A relative ExecStart is not a path systemd resolves at all.
 		{path: "bin/depl", refused: true},
 		{path: "", refused: true},

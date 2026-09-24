@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-// protectedHomes are the trees ProtectHome=true empties for the service. A
+// protectedHomes are the trees the unit's own sandbox empties for the service:
+// ProtectHome=true for the first three, PrivateTmp=true for the last two. A
 // binary that lives in one of them is simply not there when systemd execs the
 // unit, and the only thing the journal reports is 203/EXEC.
-var protectedHomes = []string{"/home", "/root", "/run/user"}
+var protectedHomes = []string{"/home", "/root", "/run/user", "/tmp", "/var/tmp"}
 
 // SelfPathError is a SelfPath the generated unit could never exec. Blocked is
 // the ProtectHome tree that hides it, and is empty when the path is not absolute.
