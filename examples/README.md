@@ -11,7 +11,7 @@ apps:
 
 ## Full lifecycle
 
-One-time setup on the VPS (clones the repo, creates the `myapp` user and
+One-time setup on the VPS (clones the repo, creates the `myapp` account and
 `/opt/myapp`, installs the systemd unit):
 
 ```sh
@@ -33,8 +33,16 @@ systemctl status myapp
 journalctl -u myapp -f
 ```
 
-Remove it (keeps `/opt/myapp` and the user unless you add `--purge`):
+Remove it. The unit goes; the checkout, `.env` and the account stay:
 
 ```sh
 sudo s99deploy uninstall myapp
+```
+
+It asks you to type `myapp` before it does anything. `--yes` skips that, for a
+script. `--purge` also deletes `/opt/myapp` and the `myapp` account, after
+checking that `/opt/myapp` really is that account's home:
+
+```sh
+sudo s99deploy uninstall --purge --yes myapp
 ```
